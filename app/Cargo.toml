@@ -1,0 +1,18 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+egui = { version = "0.22.0" }
+serde = { version = "1.0.150", features = ["derive"] }
+eframe = { version = "0.22.0", features=["wgpu"]}
+serde_json = "1"
+strum = { version = "0.25", features = ["derive"] }
+bluebook_core = { path = "../bluebook_core"}
+peritext = { path = "../backends/peritext"}
+thiserror = "1.0.47"
+chrono = {version="0.4.26", features=["serde"]}
+string_cache = "0.8.7"

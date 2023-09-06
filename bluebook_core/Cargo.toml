@@ -1,0 +1,25 @@
+[package]
+name = "bluebook_core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+#error handing
+thiserror = "1.0.38"
+color-eyre = "0.6.2"
+#ser-de
+serde = { version = "1.0.150", features = ["derive"] }
+serde_json = "1.0.89"
+chrono = { versuon = "0.4.26", features = ["serde"] }
+
+
+
+strum = { version = "0.24", features = ["derive"] }
+
+
+ropey = { version = "1.6.0"}
+unicode-segmentation = { version = "1.10"}
+
+string_cache = "0.8.7"

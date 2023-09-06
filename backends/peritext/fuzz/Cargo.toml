@@ -1,0 +1,56 @@
+[package]
+name = "peritext-rs-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.crdt-richtext]
+path = ".."
+features = ["test"]
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "basic"
+path = "fuzz_targets/basic.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "five-actors"
+path = "fuzz_targets/five-actors.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rich-text-apply"
+path = "fuzz_targets/rich-text-apply.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rich-text"
+path = "fuzz_targets/rich-text.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rich-text-utf16"
+path = "fuzz_targets/rich-text-utf16.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rich-text-match"
+path = "fuzz_targets/rich-text-match.rs"
+test = false
+doc = false

@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+edition = "2021"
+members = [
+    # "frontend",
+    "backends/*",
+    "bluebook_core",
+    "app"
+]
