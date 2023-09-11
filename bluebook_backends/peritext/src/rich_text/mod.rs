@@ -1576,7 +1576,7 @@ impl RichText {
                             self.annotate_inner(
                                 index..end,
                                 Style::new_from_expand(
-                                    Expand::infer_delete_expand(&key),
+                                    Expand::infer_delete_expand(key),
                                     key.into(),
                                     Value::Null,
                                     Behavior::Delete,

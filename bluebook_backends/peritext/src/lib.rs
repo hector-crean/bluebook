@@ -8,10 +8,8 @@ pub mod rich_text;
 
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashMap},
     fmt::Debug,
-    ops::{Bound, Range, RangeBounds},
-    sync::Arc,
+    ops::{Bound, RangeBounds},
 };
 
 use rich_text::Error;

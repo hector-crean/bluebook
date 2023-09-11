@@ -139,7 +139,7 @@ impl DeltaItem {
                         Some(len) => {
                             *len -= length;
                         }
-                        None => *len = Some(get_utf16_len(&insert)),
+                        None => *len = Some(get_utf16_len(insert)),
                     }
 
                     Self::Insert {

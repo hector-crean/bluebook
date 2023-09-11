@@ -79,7 +79,7 @@ pub fn line_start_to_utf8(bytes: &BytesSlice, n: usize) -> Option<usize> {
 pub fn bytes_to_str(bytes: &[u8]) -> &str {
     #[allow(unsafe_code)]
     // SAFETY: we are sure the range is valid utf8
-    let str = unsafe { std::str::from_utf8_unchecked(&bytes[..]) };
+    let str = unsafe { std::str::from_utf8_unchecked(bytes) };
     str
 }
 

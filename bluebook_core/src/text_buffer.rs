@@ -1,15 +1,10 @@
-use crate::span::{Annotation, Span, SpanIterable};
+use crate::span::{Span};
 
 use super::text_buffer_cursor::TextBufferCursor;
 
 use std::{
     borrow::Cow,
-    default::Default,
-    error::Error,
-    fs::File,
-    io,
-    ops::{Deref, DerefMut, Range, RangeBounds},
-    slice::Iter,
+    ops::{Range, RangeBounds},
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -64,7 +59,7 @@ pub trait TextBuffer {
     /// Create a cursor with a reference to the text and a offset position.
     ///
     /// Returns None if the position isn't a codepoint boundary.
-    fn cursor<'cursor>(&'cursor self, position: usize) -> Option<Self::Cursor<'cursor>>;
+    fn cursor(&self, position: usize) -> Option<Self::Cursor<'_>>;
     // ^ should I specify cursors?
 
     fn write(&mut self, offset: usize, s: &str) -> Result<(), TextBufferError>;

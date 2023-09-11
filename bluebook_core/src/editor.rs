@@ -1,6 +1,6 @@
-use std::cell::RefMut;
 
-use crate::{command::EditCommand, text_buffer::TextBuffer, text_buffer_cursor::TextBufferCursor};
+
+use crate::{command::EditCommand, text_buffer::TextBuffer};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,7 +36,7 @@ where
         }
     }
 
-    fn consume_edit_command(self, edit_command: EditCommand) -> () {
+    fn consume_edit_command(self, edit_command: EditCommand) {
         use EditCommand::*;
         match edit_command {
             MoveLineDown => self.text_buffer.replace_range(.., ""),

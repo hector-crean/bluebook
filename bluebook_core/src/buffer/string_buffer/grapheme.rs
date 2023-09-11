@@ -7,7 +7,7 @@
 
 // use std::str::pattern::Pattern;
 use core::cmp;
-use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
+use unicode_segmentation::{GraphemeCursor};
 
 #[derive(Clone, Debug)]
 pub struct Graphemes<'a> {
@@ -34,7 +34,7 @@ impl<'a> Graphemes<'a> {
         &self.string[self.cursor.cur_cursor()..self.cursor_back.cur_cursor()]
     }
 
-    pub fn new<'b>(s: &'b str, is_extended: bool) -> Graphemes<'b> {
+    pub fn new(s: &str, is_extended: bool) -> Graphemes<'_> {
         let len = s.len();
         Graphemes {
             string: s,

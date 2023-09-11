@@ -10,7 +10,7 @@ pub struct RopeCursor<'a> {
 
 impl<'a> RopeCursor<'a> {
     /// Create a new cursor.
-    pub fn new(text: &'a str) -> Self {
+    pub fn new(_text: &'a str) -> Self {
         todo!()
     }
 }

@@ -1,8 +1,12 @@
+use std::borrow::Cow;
+
 use crate::{text_buffer::TextBuffer, text_buffer_cursor::TextBufferCursor};
 
+use peritext::rich_text::cursor::Cursor;
+
 #[derive(Debug)]
-pub struct StringCursor<'a> {
-    pub text: &'a str,
+pub struct PeritextCursor<'a> {
+    pub text: Cow<'a, str>,
     pub position: usize,
 }
 
@@ -12,14 +16,14 @@ pub struct StringCursor<'a> {
 //     position: usize,
 // }
 
-impl<'a> StringCursor<'a> {
+impl<'a> PeritextCursor<'a> {
     /// Create a new cursor.
-    pub fn new(text: &'a mut String) -> Self {
+    pub fn new(text: Cow<'a, str>) -> Self {
         Self { text, position: 0 }
     }
 }
 
-impl<'cursor> TextBufferCursor<'cursor> for StringCursor<'cursor> {
+impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
     fn set(&mut self, position: usize) {
         self.position = position;
     }

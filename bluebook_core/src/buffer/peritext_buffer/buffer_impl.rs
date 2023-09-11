@@ -1,28 +1,21 @@
-use super::cursor_impl::StringCursor;
+use super::cursor_impl::PeritextCursor;
+use crate::text_buffer_cursor::TextBufferCursor;
 use crate::{
-    span::{Annotation, Span},
+    span::Span,
     text_buffer::{TextBuffer, TextBufferError},
-    text_buffer_cursor::TextBufferCursor,
 };
-use serde_json::Value;
 use std::{
-    borrow::{BorrowMut, Cow},
+    borrow::Cow,
     ops::{Range, RangeBounds},
 };
-use string_cache::DefaultAtom;
-use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete, UnicodeSegmentation};
 
-use peritext::{
-    rich_text::{self, DeltaItem, IndexType, RichText as RichTextInner},
-    Behavior, Expand, Style,
-};
-use std::{cell::RefCell, collections::HashMap, panic};
+use peritext::rich_text::{self, IndexType, RichText as RichTextInner};
 
-impl Into<Span> for peritext::rich_text::Span {
-    fn into(self) -> Span {
+impl From<peritext::rich_text::Span> for Span {
+    fn from(val: peritext::rich_text::Span) -> Self {
         Span {
-            insert: self.insert,
-            attributes: self.attributes,
+            insert: val.insert,
+            attributes: val.attributes,
         }
     }
 }
@@ -40,7 +33,7 @@ impl Peritext {
 }
 
 impl TextBuffer for Peritext {
-    type Cursor<'cursor> = StringCursor<'cursor> where Self:'cursor;
+    type Cursor<'cursor> = PeritextCursor<'cursor> where Self:'cursor;
     type SpanItem = rich_text::Span;
     type SpanIter<'spans> = rich_text::iter::Iter<'spans> where Self: 'spans;
 
@@ -56,8 +49,17 @@ impl TextBuffer for Peritext {
         rich_text::iter::Iter::new(&self.inner)
     }
 
-    fn cursor<'cursor>(&'cursor self, position: usize) -> Option<Self::Cursor<'cursor>> {
-        None
+    fn cursor(&self, _position: usize) -> Option<Self::Cursor<'_>> {
+        let new_cursor = PeritextCursor {
+            text: self.inner.to_string().into(),
+            position: _position,
+        };
+
+        if new_cursor.is_boundary() {
+            Some(new_cursor)
+        } else {
+            None
+        }
     }
 
     fn write(&mut self, offset: usize, s: &str) -> Result<(), TextBufferError> {
@@ -103,27 +105,27 @@ impl TextBuffer for Peritext {
         self.inner.len()
     }
 
-    fn prev_grapheme_offset(&self, from: usize) -> Option<usize> {
+    fn prev_grapheme_offset(&self, _from: usize) -> Option<usize> {
         todo!()
     }
 
-    fn next_grapheme_offset(&self, from: usize) -> Option<usize> {
+    fn next_grapheme_offset(&self, _from: usize) -> Option<usize> {
         todo!()
     }
 
-    fn prev_codepoint_offset(&self, from: usize) -> Option<usize> {
+    fn prev_codepoint_offset(&self, _from: usize) -> Option<usize> {
         todo!()
     }
 
-    fn next_codepoint_offset(&self, from: usize) -> Option<usize> {
+    fn next_codepoint_offset(&self, _from: usize) -> Option<usize> {
         todo!()
     }
 
-    fn prev_word_offset(&self, from: usize) -> Option<usize> {
+    fn prev_word_offset(&self, _from: usize) -> Option<usize> {
         todo!()
     }
 
-    fn next_word_offset(&self, from: usize) -> Option<usize> {
+    fn next_word_offset(&self, _from: usize) -> Option<usize> {
         todo!()
     }
 
@@ -131,22 +133,21 @@ impl TextBuffer for Peritext {
         self.inner.is_empty()
     }
 
-    fn from_str(s: &str) -> Self {
+    fn from_str(_s: &str) -> Self {
         todo!()
     }
 
-    fn preceding_line_break(&self, from: usize) -> usize {
+    fn preceding_line_break(&self, _from: usize) -> usize {
         todo!()
     }
 
-    fn next_line_break(&self, from: usize) -> usize {
+    fn next_line_break(&self, _from: usize) -> usize {
         todo!()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
 
     use super::*;
 
@@ -191,7 +192,7 @@ mod tests {
 
     #[test]
     fn prev_next() {
-        let mut buf = String::from("abc");
+        let buf = String::from("abc");
         let mut cursor = buf.cursor(0).unwrap();
 
         assert_eq!(cursor.next(), Some(0));
@@ -203,7 +204,7 @@ mod tests {
 
     #[test]
     fn peek_next_codepoint() {
-        let mut inp = String::from("$¢€£💶");
+        let inp = String::from("$¢€£💶");
         let mut cursor = inp.cursor(0).unwrap();
         assert_eq!(cursor.peek_next_codepoint(), Some('$'));
         assert_eq!(cursor.peek_next_codepoint(), Some('$'));

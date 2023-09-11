@@ -319,7 +319,7 @@ impl<'a> Iterator for SearchIter<'a> {
             while i < self.possible_matches.len() {
                 let pattern_char = self.possible_matches[i].next().unwrap();
                 if next_char == pattern_char {
-                    if self.possible_matches[i].clone().next() == None {
+                    if self.possible_matches[i].clone().next().is_none() {
                         // We have a match!  Reset possible matches and
                         // return the successful match's char indices.
                         let char_match_range = (
@@ -474,34 +474,34 @@ mod tests {
     fn is_grapheme_boundary_01() {
         let r = Rope::from_str("Hẽ̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃llõ̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃ wõ̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃̃rld!");
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 0), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 0));
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 1), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 200), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 443), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 444), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 1));
+        assert!(!is_grapheme_boundary(&r.slice(..), 2));
+        assert!(!is_grapheme_boundary(&r.slice(..), 200));
+        assert!(!is_grapheme_boundary(&r.slice(..), 443));
+        assert!(is_grapheme_boundary(&r.slice(..), 444));
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 445), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 445));
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 446), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 447), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 600), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 981), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 982), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 446));
+        assert!(!is_grapheme_boundary(&r.slice(..), 447));
+        assert!(!is_grapheme_boundary(&r.slice(..), 600));
+        assert!(!is_grapheme_boundary(&r.slice(..), 981));
+        assert!(is_grapheme_boundary(&r.slice(..), 982));
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 983), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 983));
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 984), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 985), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 1400), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2701), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2702), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 984));
+        assert!(!is_grapheme_boundary(&r.slice(..), 985));
+        assert!(!is_grapheme_boundary(&r.slice(..), 1400));
+        assert!(!is_grapheme_boundary(&r.slice(..), 2701));
+        assert!(is_grapheme_boundary(&r.slice(..), 2702));
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2703), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2704), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2705), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2706), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 2703));
+        assert!(is_grapheme_boundary(&r.slice(..), 2704));
+        assert!(is_grapheme_boundary(&r.slice(..), 2705));
+        assert!(is_grapheme_boundary(&r.slice(..), 2706));
     }
 
     #[test]
@@ -622,53 +622,53 @@ mod tests {
     fn is_grapheme_boundary_regional_symbols() {
         let r = Rope::from_str("🇬🇧🇯🇵🇺🇸🇫🇷🇷🇺🇨🇳🇩🇪🇪🇸🇬🇧🇯🇵🇺🇸🇫🇷🇷🇺🇨🇳🇩🇪🇪🇸🇬🇧🇯🇵🇺🇸🇫🇷🇷🇺🇨🇳🇩🇪🇪");
 
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 0), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 1), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 2), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 3), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 4), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 5), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 6), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 7), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 8), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 9), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 10), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 11), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 12), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 13), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 14), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 15), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 16), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 17), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 18), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 19), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 20), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 21), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 22), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 23), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 24), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 25), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 26), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 27), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 28), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 29), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 30), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 31), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 32), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 33), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 34), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 35), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 36), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 37), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 38), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 39), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 40), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 41), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 42), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 43), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 44), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 45), false);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 46), true);
-        assert_eq!(is_grapheme_boundary(&r.slice(..), 47), true);
+        assert!(is_grapheme_boundary(&r.slice(..), 0));
+        assert!(!is_grapheme_boundary(&r.slice(..), 1));
+        assert!(is_grapheme_boundary(&r.slice(..), 2));
+        assert!(!is_grapheme_boundary(&r.slice(..), 3));
+        assert!(is_grapheme_boundary(&r.slice(..), 4));
+        assert!(!is_grapheme_boundary(&r.slice(..), 5));
+        assert!(is_grapheme_boundary(&r.slice(..), 6));
+        assert!(!is_grapheme_boundary(&r.slice(..), 7));
+        assert!(is_grapheme_boundary(&r.slice(..), 8));
+        assert!(!is_grapheme_boundary(&r.slice(..), 9));
+        assert!(is_grapheme_boundary(&r.slice(..), 10));
+        assert!(!is_grapheme_boundary(&r.slice(..), 11));
+        assert!(is_grapheme_boundary(&r.slice(..), 12));
+        assert!(!is_grapheme_boundary(&r.slice(..), 13));
+        assert!(is_grapheme_boundary(&r.slice(..), 14));
+        assert!(!is_grapheme_boundary(&r.slice(..), 15));
+        assert!(is_grapheme_boundary(&r.slice(..), 16));
+        assert!(!is_grapheme_boundary(&r.slice(..), 17));
+        assert!(is_grapheme_boundary(&r.slice(..), 18));
+        assert!(!is_grapheme_boundary(&r.slice(..), 19));
+        assert!(is_grapheme_boundary(&r.slice(..), 20));
+        assert!(!is_grapheme_boundary(&r.slice(..), 21));
+        assert!(is_grapheme_boundary(&r.slice(..), 22));
+        assert!(!is_grapheme_boundary(&r.slice(..), 23));
+        assert!(is_grapheme_boundary(&r.slice(..), 24));
+        assert!(!is_grapheme_boundary(&r.slice(..), 25));
+        assert!(is_grapheme_boundary(&r.slice(..), 26));
+        assert!(!is_grapheme_boundary(&r.slice(..), 27));
+        assert!(is_grapheme_boundary(&r.slice(..), 28));
+        assert!(!is_grapheme_boundary(&r.slice(..), 29));
+        assert!(is_grapheme_boundary(&r.slice(..), 30));
+        assert!(!is_grapheme_boundary(&r.slice(..), 31));
+        assert!(is_grapheme_boundary(&r.slice(..), 32));
+        assert!(!is_grapheme_boundary(&r.slice(..), 33));
+        assert!(is_grapheme_boundary(&r.slice(..), 34));
+        assert!(!is_grapheme_boundary(&r.slice(..), 35));
+        assert!(is_grapheme_boundary(&r.slice(..), 36));
+        assert!(!is_grapheme_boundary(&r.slice(..), 37));
+        assert!(is_grapheme_boundary(&r.slice(..), 38));
+        assert!(!is_grapheme_boundary(&r.slice(..), 39));
+        assert!(is_grapheme_boundary(&r.slice(..), 40));
+        assert!(!is_grapheme_boundary(&r.slice(..), 41));
+        assert!(is_grapheme_boundary(&r.slice(..), 42));
+        assert!(!is_grapheme_boundary(&r.slice(..), 43));
+        assert!(is_grapheme_boundary(&r.slice(..), 44));
+        assert!(!is_grapheme_boundary(&r.slice(..), 45));
+        assert!(is_grapheme_boundary(&r.slice(..), 46));
+        assert!(is_grapheme_boundary(&r.slice(..), 47));
     }
 }

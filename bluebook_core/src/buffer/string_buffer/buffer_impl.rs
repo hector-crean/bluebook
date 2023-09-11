@@ -5,10 +5,10 @@ use crate::{
     text_buffer_cursor::TextBufferCursor,
 };
 use std::{
-    borrow::{BorrowMut, Cow},
+    borrow::{Cow},
     ops::{Range, RangeBounds},
 };
-use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete, UnicodeSegmentation};
+use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 
 // impl<'a, T: TextBuffer> Iterator for Drain<'a, T>
 // where
@@ -51,14 +51,14 @@ impl TextBuffer for String {
         Self::SpanIter::new()
     }
 
-    fn annotate<R>(&mut self, range: R, annotation: peritext::Style)
+    fn annotate<R>(&mut self, _range: R, _annotation: peritext::Style)
     where
         R: RangeBounds<usize>,
     {
         todo!()
     }
 
-    fn cursor<'cursor>(&'cursor self, position: usize) -> Option<Self::Cursor<'cursor>> {
+    fn cursor(&self, position: usize) -> Option<Self::Cursor<'_>> {
         let new_cursor = StringCursor {
             text: self,
             position,
@@ -189,7 +189,7 @@ impl TextBuffer for String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    
 
     use super::*;
 
@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn prev_next() {
-        let mut buf = String::from("abc");
+        let buf = String::from("abc");
         let mut cursor = buf.cursor(0).unwrap();
 
         assert_eq!(cursor.next(), Some(0));
@@ -246,7 +246,7 @@ mod tests {
 
     #[test]
     fn peek_next_codepoint() {
-        let mut inp = String::from("$¢€£💶");
+        let inp = String::from("$¢€£💶");
         let mut cursor = inp.cursor(0).unwrap();
         assert_eq!(cursor.peek_next_codepoint(), Some('$'));
         assert_eq!(cursor.peek_next_codepoint(), Some('$'));
