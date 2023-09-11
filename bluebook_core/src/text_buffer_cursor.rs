@@ -1,51 +1,40 @@
-
-
-
 /// A cursor with convenience functions for moving through a TextBuffer.
 
 pub trait TextBufferCursor<'cursor> {
     /// Set cursor position.
-    fn set(&mut self, position: usize);
+    fn set(self, byte_idx: usize) -> Self;
 
     /// Get cursor position.
     fn pos(&self) -> usize;
 
+    /// Get the next grapheme offset from the given offset, if it exists.
+    fn prev_grapheme_offset(&self) -> Option<usize>;
+
+    /// Get the next grapheme offset from the given offset, if it exists.
+    fn next_grapheme_offset(&self) -> Option<usize>;
+
+    fn nth_next_grapheme_boundary(&self, n: usize) -> Option<usize>;
+
+    fn nth_prev_grapheme_boundary(&self, n: usize) -> Option<usize>;
+
     /// Check if cursor position is at a codepoint boundary.
-    fn is_boundary(&self) -> bool;
+    fn is_grapheme_boundary(&self) -> bool;
 
-    /// Move cursor to previous codepoint boundary, if it exists.
-    /// Returns previous codepoint as usize offset.
-    fn prev(&mut self) -> Option<usize>;
+    // /// Get the previous word offset from the given offset, if it exists.
+    // fn prev_word_offset(&self, offset: usize) -> Option<usize>;
 
-    /// Move cursor to next codepoint boundary, if it exists.
-    /// Returns current codepoint as usize offset.
-    fn next(&mut self) -> Option<usize>;
+    // /// Get the next word offset from the given offset, if it exists.
+    // fn next_word_offset(&self, offset: usize) -> Option<usize>;
 
-    /// Get the next codepoint after the cursor position, without advancing
-    /// the cursor.
-    fn peek_next_codepoint(&self) -> Option<char>;
+    // /// Get the previous codepoint offset from the given offset, if it exists.
+    // fn prev_codepoint_offset(&self, offset: usize) -> Option<usize>;
 
-    /// Return codepoint preceding cursor offset and move cursor backward.
-    fn prev_codepoint(&mut self) -> Option<char>;
+    // /// Get the next codepoint offset from the given offset, if it exists.
+    // fn next_codepoint_offset(&self, offset: usize) -> Option<usize>;
 
-    /// Return codepoint at cursor offset and move cursor forward.
-    fn next_codepoint(&mut self) -> Option<char>;
+    // /// Get the preceding line break offset from the given offset
+    // fn preceding_line_break(&self, offset: usize) -> usize;
 
-    /// Return current offset if it's a boundary, else next.
-    fn at_or_next(&mut self) -> Option<usize>;
-
-    /// Return current offset if it's a boundary, else previous.
-    fn at_or_prev(&mut self) -> Option<usize>;
-}
-
-pub struct Cursors<'buffer, 'cursor> {
-    cursors: Vec<&'buffer dyn TextBufferCursor<'cursor>>,
-}
-
-impl<'buffer, 'cursor> Cursors<'buffer, 'cursor> {
-    fn new() -> Self {
-        Self {
-            cursors: Vec::new(),
-        }
-    }
+    // /// Get the next line break offset from the given offset
+    // fn next_line_break(&self, offset: usize) -> usize;
 }

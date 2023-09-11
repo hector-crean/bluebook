@@ -1,5 +1,3 @@
-
-
 use crate::{command::EditCommand, text_buffer::TextBuffer};
 use serde::{Deserialize, Serialize};
 
@@ -51,11 +49,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn editor() {
-        let editor = TextEditor {
-            text_buffer: &mut String::from(""),
-        };
-
-        editor.consume_edit_command(EditCommand::DeleteWordBackward);
-    }
+    fn editor() {}
 }

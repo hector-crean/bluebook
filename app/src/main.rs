@@ -3,10 +3,10 @@ use app::{
     formatting::Formatting,
     widgets::rich_text_editor::editor::TextEditor,
 };
-use bluebook_core::buffer::peritext_buffer::buffer_impl::Peritext;
 use bluebook_core::text_buffer::TextBuffer;
+use bluebook_core::{buffer::peritext_buffer::buffer_impl::Peritext, selection::CursorRange};
 use eframe::{self, egui};
-use egui::{Align2, ScrollArea, Vec2, Widget};
+use egui::{Align2, Id, ScrollArea, Vec2, Widget};
 use peritext::Style;
 use serde_json::json;
 use string_cache::Atom;
@@ -29,7 +29,13 @@ impl TextEditApp {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let editor = TextEditor::<Peritext>::new(&mut self.buf, Vec2::ZERO, Align2::CENTER_CENTER);
+        let editor = TextEditor::<Peritext>::new(
+            Id::new("text_editor"),
+            &mut self.buf,
+            CursorRange::default(),
+            Vec2::ZERO,
+            Align2::CENTER_CENTER,
+        );
 
         ScrollArea::vertical()
             .id_source("source")

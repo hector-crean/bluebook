@@ -7,75 +7,78 @@
 
 // use std::str::pattern::Pattern;
 use core::cmp;
-use unicode_segmentation::{GraphemeCursor};
+use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
 
 #[derive(Clone, Debug)]
 pub struct Graphemes<'a> {
-    string: &'a str,
-    cursor: GraphemeCursor,
-    cursor_back: GraphemeCursor,
+    slice: &'a str,
+    gc: GraphemeCursor,
 }
 
 impl<'a> Graphemes<'a> {
-    #[inline]
-    /// View the underlying data (the part yet to be iterated) as a slice of the original string.
-    ///
-    /// ```rust
-    /// # use unicode_segmentation::UnicodeSegmentation;
-    /// let mut iter = "abc".graphemes(true);
-    /// assert_eq!(iter.as_str(), "abc");
-    /// iter.next();
-    /// assert_eq!(iter.as_str(), "bc");
-    /// iter.next();
-    /// iter.next();
-    /// assert_eq!(iter.as_str(), "");
-    /// ```
-    pub fn as_str(&self) -> &'a str {
-        &self.string[self.cursor.cur_cursor()..self.cursor_back.cur_cursor()]
-    }
-
     pub fn new(s: &str, is_extended: bool) -> Graphemes<'_> {
         let len = s.len();
         Graphemes {
-            string: s,
-            cursor: GraphemeCursor::new(0, len, is_extended),
-            cursor_back: GraphemeCursor::new(len, len, is_extended),
+            slice: s,
+            gc: GraphemeCursor::new(0, len, is_extended),
+        }
+    }
+    pub fn set_cursor_offet(mut self, byte_idx: usize) -> Self {
+        self.gc.set_cursor(byte_idx);
+        self
+    }
+    pub fn is_grapheme_boundary(mut self, byte_idx: usize) -> bool {
+        loop {
+            match self.gc.is_boundary(self.slice, byte_idx) {
+                Ok(n) => return n,
+                Err(GraphemeIncomplete::PreContext(n)) => {
+                    // let (ctx_chunk, ctx_byte_start, _, _) = self.slice.chunk_at_byte(n - 1);
+                    // self.gc.provide_context(ctx_chunk, ctx_byte_start);
+                }
+                Err(_) => unreachable!(),
+            }
         }
     }
 }
 
-impl<'a> Iterator for Graphemes<'a> {
-    type Item = &'a str;
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let slen = self.cursor_back.cur_cursor() - self.cursor.cur_cursor();
-        (cmp::min(slen, 1), Some(slen))
+pub struct GraphemeIterItem {
+    pub byte_offset: usize,
+}
+impl GraphemeIterItem {
+    fn new(byte_offset: usize) -> Self {
+        Self { byte_offset }
     }
+}
+impl<'a> Iterator for Graphemes<'a> {
+    type Item = GraphemeIterItem;
 
-    #[inline]
-    fn next(&mut self) -> Option<&'a str> {
-        let start = self.cursor.cur_cursor();
-        if start == self.cursor_back.cur_cursor() {
-            return None;
-        }
-        let next = self.cursor.next_boundary(self.string, 0).unwrap().unwrap();
-        Some(&self.string[start..next])
+    fn next(&mut self) -> Option<Self::Item> {
+        let next_idx = self.gc.next_boundary(self.slice, 0).unwrap().unwrap();
+        Some(GraphemeIterItem::new(next_idx))
     }
 }
 
 impl<'a> DoubleEndedIterator for Graphemes<'a> {
-    #[inline]
-    fn next_back(&mut self) -> Option<&'a str> {
-        let end = self.cursor_back.cur_cursor();
-        if end == self.cursor.cur_cursor() {
-            return None;
-        }
-        let prev = self
-            .cursor_back
-            .prev_boundary(self.string, 0)
-            .unwrap()
-            .unwrap();
-        Some(&self.string[prev..end])
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let prev_idx = self.gc.prev_boundary(self.slice, 0).unwrap().unwrap();
+        Some(GraphemeIterItem::new(prev_idx))
     }
+}
+
+pub fn nth_next_grapheme_boundary<'a>(
+    slice: &'a str,
+    byte_idx: usize,
+    n: usize,
+) -> Option<GraphemeIterItem> {
+    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_idx);
+    graphemes.nth(n)
+}
+
+pub fn nth_prev_grapheme_boundary<'a>(
+    slice: &'a str,
+    byte_idx: usize,
+    n: usize,
+) -> Option<GraphemeIterItem> {
+    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_idx);
+    graphemes.nth_back(n)
 }
