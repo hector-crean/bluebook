@@ -1,3 +1,5 @@
+use crate::span::{Annotation, Span, SpanIterable};
+
 use super::text_buffer_cursor::TextBufferCursor;
 
 use std::{
@@ -41,12 +43,23 @@ This design effectively locks the TextBuffer during the draining process. Once t
 //     }
 // }
 
-pub trait TextBuffer: Default {
+pub trait TextBuffer {
     //The where Self: 'cursor clause is crucial. It ensures that any reference held by the Cursor type must outlive the 'cursor lifetime.
     //Indicates that the Cursor cannot outlive the TextBuffer it is derived from.
     type Cursor<'cursor>: TextBufferCursor<'cursor>
     where
         Self: 'cursor;
+
+    type SpanItem: Into<Span>;
+    type SpanIter<'spans>: Iterator<Item = Self::SpanItem>
+    where
+        Self: 'spans;
+
+    fn span_iter<'spans, 'buffer: 'spans>(&'buffer self) -> Self::SpanIter<'spans>;
+
+    fn annotate<R>(&mut self, range: R, annotation: peritext::Style)
+    where
+        R: RangeBounds<usize>;
 
     /// Create a cursor with a reference to the text and a offset position.
     ///

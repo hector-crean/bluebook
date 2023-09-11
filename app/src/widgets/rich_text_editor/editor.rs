@@ -1,170 +1,204 @@
 use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use bluebook_core::{
-    annotation::Span, command::EditCommand, text_buffer::TextBuffer,
-    text_buffer_cursor::TextBufferCursor,
+    buffer::peritext_buffer::buffer_impl::Peritext, command::EditCommand, span::Span,
+    text_buffer::TextBuffer, text_buffer_cursor::TextBufferCursor,
 };
 use egui::{
+    epaint::text::TextWrapping,
     text::{LayoutJob, LayoutSection},
-    vec2, Align, Align2, Color32, FontSelection, Galley, Margin, NumExt, Response, ScrollArea,
-    Sense, TextFormat, Ui, Vec2,
+    vec2, Align, Align2, Color32, Event, FontId, FontSelection, Galley, Key, Margin, NumExt, Pos2,
+    Rect, Response, ScrollArea, Sense, TextFormat, Ui, Vec2,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use string_cache::Atom;
 
-use crate::formatting::Formatting;
+use crate::formatting::{Formatting, TextFormatBuilder};
 
-pub struct TextEditor<Buffer>
+pub struct TextEditor<'buffer, Buffer>
 where
     Buffer: TextBuffer,
 {
-    text_buffer: Buffer,
-    spans: Vec<Span>,
-    font_selection: FontSelection,
+    text_buffer: &'buffer mut Buffer,
     margin: Vec2,
     align: Align2,
 }
 
-impl Default for TextEditor<String> {
-    fn default() -> Self {
-        let span = Span {
-            range: Range { start: 2, end: 4 },
-            attributes: HashMap::from_iter([(
-                Formatting::Italic.atom(),
-                json!({
-                    "code": 200,
-                    "success": true,
-                    "payload": {
-                        "features": [
-                            "serde",
-                            "json"
-                        ]
-                    }
-                }),
-            )]),
-        };
-
-        Self {
-            text_buffer: String::from("Title: My Day\n\nToday was a good day.\nI woke up early, went for a run, and then had a hearty breakfast.\nNote: Buy more eggs."),
-            spans: vec![span],
-            font_selection: FontSelection::Default,
-            margin: Vec2::ZERO,
-            align: Align2::CENTER_CENTER,
-        }
-    }
-}
-
-impl<'buffer, Buffer> TextEditor<Buffer>
+impl<'buffer, Buffer> TextEditor<'buffer, Buffer>
 where
     Buffer: TextBuffer,
 {
-    pub fn new(
-        text_buffer: impl Into<Buffer>,
-        spans: Vec<Span>,
-        font_selection: FontSelection,
-        margin: Vec2,
-        align: Align2,
-    ) -> Self {
+    pub fn new(text_buffer: &'buffer mut Buffer, margin: Vec2, align: Align2) -> Self {
         Self {
-            text_buffer: text_buffer.into(),
-            spans,
-            font_selection,
+            text_buffer,
             margin,
             align,
         }
     }
 
-    // fn consume_edit_command(self, edit_command: EditCommand) -> () {
-    //     use EditCommand::*;
-    //     match edit_command {
-    //         MoveLineDown => self.text_buffer.replace_range(.., ""),
-    //         MoveLineDown => {}
-    //         _ => {}
-    //     }
-    // }
-
-    fn layout_job(&self) -> LayoutJob {
+    fn layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
         let buffer = self.text_buffer.take();
 
         let mut job = LayoutJob {
-            sections: vec![LayoutSection {
-                leading_space: 0.0,
-                byte_range: 0..self.text_buffer.len(),
-                format: TextFormat {
-                    font_id: egui::FontId::monospace(12.0),
-                    color: Color32::DARK_RED,
-                    ..Default::default()
-                },
-            }],
             text: buffer.into(),
             break_on_newline: true,
+            wrap: TextWrapping {
+                max_width,
+                ..Default::default()
+            },
             ..Default::default()
         };
 
-        for Span { range, attributes } in self.spans.iter() {
+        for span in self.text_buffer.span_iter() {
+            let Span { insert, attributes } = span.into();
+
+            let mut bldr = TextFormatBuilder::new();
+
             for attribute in attributes.iter() {
                 let formatting: Formatting = attribute.into();
+                match formatting {
+                    Formatting::Italic => {
+                        bldr = bldr.italics(true);
+                    }
+                    Formatting::Bold => bldr = bldr.color(Color32::DARK_RED),
+                    Formatting::Comment(_) => {
+                        bldr = bldr.background(Color32::YELLOW);
+                    }
 
-                job.sections.push(LayoutSection {
-                    leading_space: 0.,
-                    byte_range: range.clone(),
-                    format: formatting.into(),
-                })
+                    _ => {}
+                }
             }
+            job.append(&insert, 0., bldr.build())
         }
 
-        job
-    }
-    fn layouter(&self, ui: &Ui) -> Arc<Galley> {
-        let job = self.layout_job();
         let galley = ui.fonts(|rdr| rdr.layout_job(job));
         galley
     }
-}
 
-impl<Buffer: TextBuffer + Default> egui::Widget for TextEditor<Buffer> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let galley = self.layouter(ui);
-
-        let font_id = self.font_selection.resolve(ui.style());
-
+    fn size(&self, ui: &Ui, galley_size: Vec2, font_id: &FontId) -> Vec2 {
         let available_width = ui.available_width().at_least(24.0);
-        let desired_width = ui.spacing().text_edit_width;
+
         let wrap_width = if ui.layout().horizontal_justify() {
             available_width
         } else {
-            desired_width.min(available_width)
+            ui.spacing().text_edit_width.min(available_width)
         } - self.margin.x * 2.0;
-        let desired_width = galley.size().x.max(wrap_width);
+
+        let desired_width = galley_size.x.max(wrap_width);
 
         let row_height = ui.fonts(|f| f.row_height(&font_id));
 
         let desired_height = 4. * row_height;
-        let desired_size = vec2(desired_width, galley.size().y.max(desired_height))
+
+        let desired_size = vec2(desired_width, galley_size.y.max(desired_height))
             .at_least(Vec2::ZERO - self.margin * 2.0);
+
+        desired_size
+    }
+
+    fn draw_position(&self, size: Vec2, frame: Rect) -> Pos2 {
+        let text_draw_pos = self
+            .align
+            .align_size_within_rect(size, frame)
+            .intersect(frame) // limit pos to the response rect area
+            .min;
+
+        text_draw_pos
+    }
+
+    fn events(&mut self, ui: &Ui) -> bool {
+        let mut signal_change = false;
+
+        let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
+
+        for event in &events {
+            match event {
+                Event::Text(text_to_insert) => {
+                    // Newlines are handled by `Key::Enter`.
+                    let len = self.text_buffer.len();
+
+                    let _ = self.text_buffer.write(len, text_to_insert);
+
+                    signal_change = true;
+                }
+                Event::Key {
+                    key,
+                    pressed,
+                    repeat,
+                    modifiers,
+                } => match (key, pressed) {
+                    (Key::Backspace | Key::Delete, true) => {
+                        let len = self.text_buffer.len();
+                        if len >= 1 {
+                            let _ = self.text_buffer.replace_range(len - 1..len, "");
+                        }
+                    }
+                    (Key::Enter, true) => {
+                        let len = self.text_buffer.len();
+                        let _ = self.text_buffer.write(len, "\n");
+                    }
+                    _ => {}
+                },
+
+                _ => {}
+            }
+        }
+
+        signal_change
+    }
+}
+
+impl<'buffer, Buffer: TextBuffer> egui::Widget for TextEditor<'buffer, Buffer> {
+    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
+        /**
+         * @TODO:
+         * - cursor (stick to singular cursor): over range
+         * - move cursor with arrow keys and mouse/touch. How does the cursor move? Find the next codepoint? Goto next line?
+         * - how do we create a ui for the cursor itself? Blinking when not inserting? How do we extend the cursor? Drag/key input?
+         *
+         * - Modes: look into helix modes (normal/insert etc.)
+         *
+         *  
+         * - meta keys: command, shift,
+         * - keybindings
+         *  - copy/paste (copypasta?)
+         *  - do/undo (probably need to create a trait for this, and different methods of implementation?)
+         *  -
+         *
+         */
+        // self.events(ui);
+        let signal = self.events(ui);
+
+        let galley = self.layouter(ui, ui.available_width());
+
+        let font_id = FontSelection::default().resolve(ui.style());
+
+        let desired_size = self.size(ui, galley.size(), &font_id);
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
         let sense = Sense::click_and_drag();
 
-        let response = ui.interact(rect, auto_id, sense);
+        let mut response = ui.interact(rect, auto_id, sense);
 
         let painter = ui.painter_at(rect.expand(1.0)); // expand to avoid clipping cursor
 
-        let text_draw_pos = self
-            .align
-            .align_size_within_rect(galley.size(), response.rect)
-            .intersect(response.rect) // limit pos to the response rect area
-            .min;
+        let text_draw_pos = self.draw_position(galley.size(), response.rect);
 
-        painter.galley(text_draw_pos, galley.clone());
+        if signal {
+            response.mark_changed()
+        }
+
+        painter.galley(text_draw_pos, galley);
 
         response
     }
 }
 
-// use std::io::{Seek, SeekFrom};
+impl<'buffer, Buffer: TextBuffer> egui::WidgetWithState for TextEditor<'buffer, Buffer> {
+    type State = ();
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MotionMode {

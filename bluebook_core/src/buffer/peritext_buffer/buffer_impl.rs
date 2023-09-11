@@ -1,63 +1,68 @@
 use super::cursor_impl::StringCursor;
 use crate::{
+    span::{Annotation, Span},
     text_buffer::{TextBuffer, TextBufferError},
     text_buffer_cursor::TextBufferCursor,
 };
+use serde_json::Value;
 use std::{
     borrow::{BorrowMut, Cow},
     ops::{Range, RangeBounds},
 };
+use string_cache::DefaultAtom;
 use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete, UnicodeSegmentation};
 
-// impl<'a, T: TextBuffer> Iterator for Drain<'a, T>
-// where
-//     T: AsMut<str>, // Allow us to work directly with the string data
-// {
-//     type Item = char;
+use peritext::{
+    rich_text::{self, DeltaItem, IndexType, RichText as RichTextInner},
+    Behavior, Expand, Style,
+};
+use std::{cell::RefCell, collections::HashMap, panic};
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.range.start < self.range.end {
-//             let current_char = self
-//                 .text_buffer
-//                 .as_mut()
-//                 .chars()
-//                 .nth(self.range.start)
-//                 .expect("Invalid char boundary");
+impl Into<Span> for peritext::rich_text::Span {
+    fn into(self) -> Span {
+        Span {
+            insert: self.insert,
+            attributes: self.attributes,
+        }
+    }
+}
 
-//             // Remove the char from the text buffer
-//             self.text_buffer.as_mut().replace_range(
-//                 self.range.start..self.range.start + current_char.len_utf8(),
-//                 "",
-//             );
+pub struct Peritext {
+    inner: RichTextInner,
+}
 
-//             // Update the range end to reflect the change in length
-//             self.range.end -= current_char.len_utf8();
+impl Peritext {
+    pub fn new(client_id: u64) -> Self {
+        Self {
+            inner: RichTextInner::new(client_id),
+        }
+    }
+}
 
-//             Some(current_char)
-//         } else {
-//             None
-//         }
-//     }
-// }
-
-impl TextBuffer for String {
+impl TextBuffer for Peritext {
     type Cursor<'cursor> = StringCursor<'cursor> where Self:'cursor;
+    type SpanItem = rich_text::Span;
+    type SpanIter<'spans> = rich_text::iter::Iter<'spans> where Self: 'spans;
+
+    // pub fn iter(&self) -> impl Iterator<Item = Span> + '_ {
+    fn annotate<R>(&mut self, range: R, annotation: peritext::Style)
+    where
+        R: RangeBounds<usize>,
+    {
+        self.inner.annotate(range, annotation)
+    }
+
+    fn span_iter<'spans, 'buffer: 'spans>(&'buffer self) -> Self::SpanIter<'spans> {
+        rich_text::iter::Iter::new(&self.inner)
+    }
 
     fn cursor<'cursor>(&'cursor self, position: usize) -> Option<Self::Cursor<'cursor>> {
-        let new_cursor = StringCursor {
-            text: self,
-            position,
-        };
-
-        if new_cursor.is_boundary() {
-            Some(new_cursor)
-        } else {
-            None
-        }
+        None
     }
 
     fn write(&mut self, offset: usize, s: &str) -> Result<(), TextBufferError> {
-        self.insert_str(offset, s);
+        self.inner.insert(offset, s);
+
         Ok(())
     }
 
@@ -65,110 +70,77 @@ impl TextBuffer for String {
     where
         R: RangeBounds<usize>,
     {
-        self.replace_range(range, replace_with)
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(&start) => start,
+            std::ops::Bound::Excluded(&start) => start + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(&end) => end + 1,
+            std::ops::Bound::Excluded(&end) => end,
+            std::ops::Bound::Unbounded => self.inner.len(), // Assuming inner is a collection with a len() method
+        };
+
+        self.inner.delete(start..end);
+        self.inner.insert(start, replace_with);
     }
     // fn edit(&mut self, range: Range<usize>, new: impl Into<String>) {
     //     self.replace_range(range, &new.into());
     // }
 
     fn take(&self) -> Cow<str> {
-        self.as_str().into()
+        self.inner.to_string().into()
     }
 
     fn slice(&self, range: Range<usize>) -> Option<Cow<str>> {
-        self.get(range).map(Cow::from)
+        let str = self.inner.slice_str(range, IndexType::Utf16);
+
+        Some(str.into())
     }
 
     fn len(&self) -> usize {
-        self.len()
+        self.inner.len()
     }
 
     fn prev_grapheme_offset(&self, from: usize) -> Option<usize> {
-        let mut c = GraphemeCursor::new(from, self.len(), true);
-        c.prev_boundary(self, 0).unwrap()
+        todo!()
     }
 
     fn next_grapheme_offset(&self, from: usize) -> Option<usize> {
-        let mut c = GraphemeCursor::new(from, self.len(), true);
-        c.next_boundary(self, 0).unwrap()
+        todo!()
     }
 
     fn prev_codepoint_offset(&self, from: usize) -> Option<usize> {
-        let mut c = self.cursor(from).unwrap();
-        c.prev()
+        todo!()
     }
 
     fn next_codepoint_offset(&self, from: usize) -> Option<usize> {
-        let mut c = self.cursor(from).unwrap();
-        if c.next().is_some() {
-            Some(c.pos())
-        } else {
-            None
-        }
+        todo!()
     }
 
     fn prev_word_offset(&self, from: usize) -> Option<usize> {
-        let mut offset = from;
-        let mut passed_alphanumeric = false;
-        for prev_grapheme in self.get(0..from)?.graphemes(true).rev() {
-            let is_alphanumeric = prev_grapheme.chars().next()?.is_alphanumeric();
-            if is_alphanumeric {
-                passed_alphanumeric = true;
-            } else if passed_alphanumeric {
-                return Some(offset);
-            }
-            offset -= prev_grapheme.len();
-        }
-        None
+        todo!()
     }
 
     fn next_word_offset(&self, from: usize) -> Option<usize> {
-        let mut offset = from;
-        let mut passed_alphanumeric = false;
-        for next_grapheme in self.get(from..)?.graphemes(true) {
-            let is_alphanumeric = next_grapheme.chars().next()?.is_alphanumeric();
-            if is_alphanumeric {
-                passed_alphanumeric = true;
-            } else if passed_alphanumeric {
-                return Some(offset);
-            }
-            offset += next_grapheme.len();
-        }
-        Some(self.len())
+        todo!()
     }
 
     fn is_empty(&self) -> bool {
-        self.is_empty()
+        self.inner.is_empty()
     }
 
     fn from_str(s: &str) -> Self {
-        s.to_string()
+        todo!()
     }
 
     fn preceding_line_break(&self, from: usize) -> usize {
-        let mut offset = from;
-
-        for byte in self.get(0..from).unwrap_or("").bytes().rev() {
-            if byte == 0x0a {
-                return offset;
-            }
-            offset -= 1;
-        }
-
-        0
+        todo!()
     }
 
     fn next_line_break(&self, from: usize) -> usize {
-        let mut offset = from;
-
-        for char in self.get(from..).unwrap_or("").bytes() {
-            if char == 0x0a {
-                return offset;
-            }
-            offset += 1;
-        }
-
-        self.len()
+        todo!()
     }
 }
 

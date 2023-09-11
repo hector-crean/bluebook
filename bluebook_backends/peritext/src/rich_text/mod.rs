@@ -53,7 +53,7 @@ mod encoding;
 mod error;
 mod event;
 mod id_map;
-mod iter;
+pub mod iter;
 mod op;
 mod rich_tree;
 #[cfg(all(test, feature = "test"))]

@@ -20,7 +20,7 @@ pub struct Iter<'a> {
 }
 
 impl<'a> Iter<'a> {
-    pub(crate) fn new(text: &'a RichText) -> Self {
+    pub fn new(text: &'a RichText) -> Self {
         let leaf = text.content.first_leaf();
         Self {
             style_calc: text.init_styles.clone(),

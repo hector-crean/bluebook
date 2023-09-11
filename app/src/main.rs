@@ -1,13 +1,20 @@
 use app::{
     easy_mark_editor::{self, EasyMarkEditor},
+    formatting::Formatting,
     widgets::rich_text_editor::editor::TextEditor,
 };
+use bluebook_core::buffer::peritext_buffer::buffer_impl::Peritext;
+use bluebook_core::text_buffer::TextBuffer;
 use eframe::{self, egui};
-use egui::{ScrollArea, Vec2};
+use egui::{Align2, ScrollArea, Vec2, Widget};
+use peritext::Style;
+use serde_json::json;
+use string_cache::Atom;
 
 // #[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Default)]
-struct TextEditApp {}
+struct TextEditApp {
+    buf: Peritext,
+}
 
 impl TextEditApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -15,11 +22,14 @@ impl TextEditApp {
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
-        Self::default()
+
+        let buf = Peritext::new(1);
+
+        Self { buf }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let editor = TextEditor::<String>::default();
+        let editor = TextEditor::<Peritext>::new(&mut self.buf, Vec2::ZERO, Align2::CENTER_CENTER);
 
         ScrollArea::vertical()
             .id_source("source")
@@ -55,7 +65,7 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     eframe::run_native(
-        "My egui App",
+        "bluebook",
         options,
         Box::new(|cc| Box::new(TextEditApp::new(cc))),
     )?;
