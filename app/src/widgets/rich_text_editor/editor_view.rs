@@ -1,8 +1,13 @@
 use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use bluebook_core::{
-    buffer::peritext_buffer::buffer_impl::Peritext, command::EditCommand, selection::CursorRange,
-    span::Span, text_buffer::TextBuffer, text_buffer_cursor::TextBufferCursor,
+    buffer::peritext_buffer::buffer_impl::Peritext,
+    command::EditCommand,
+    movement::{Direction, Movement},
+    selection::CursorRange,
+    span::Span,
+    text_buffer::TextBuffer,
+    text_buffer_cursor::TextBufferCursor,
 };
 use egui::{
     epaint::text::{cursor::Cursor, TextWrapping},
@@ -16,13 +21,19 @@ use string_cache::Atom;
 
 use crate::formatting::{Formatting, TextFormatBuilder};
 
+#[derive(thiserror::Error, Debug)]
+pub enum TextEditorError {
+    #[error("Text Buffer Error")]
+    TextBufferError(#[from] bluebook_core::text_buffer::TextBufferError),
+}
+
 pub struct TextEditor<'buffer, Buffer>
 where
     Buffer: TextBuffer,
 {
     id: Id,
     text_buffer: &'buffer mut Buffer,
-    cursor_range: CursorRange,
+    cursor_range: &'buffer mut CursorRange,
     margin: Vec2,
     align: Align2,
 }
@@ -34,7 +45,7 @@ where
     pub fn new(
         id: Id,
         text_buffer: &'buffer mut Buffer,
-        cursor_range: CursorRange,
+        cursor_range: &'buffer mut CursorRange,
         margin: Vec2,
         align: Align2,
     ) -> Self {
@@ -45,14 +56,6 @@ where
             margin,
             align,
         }
-    }
-
-    fn load_state(ctx: &Context, id: Id) -> Option<TextEditorState> {
-        TextEditorState::load(ctx, id)
-    }
-
-    fn store_state(ctx: &Context, id: Id, state: TextEditorState) {
-        state.store(ctx, id);
     }
 
     fn layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
@@ -129,24 +132,28 @@ where
         text_draw_pos
     }
 
-    fn events(&mut self, state: &mut TextEditorState, ui: &Ui, galley: &Galley) -> bool {
-        // let mut cursor_range = state.cursor_range(galley).unwrap_or(CursorRange::default());
-
+    fn events(&mut self, ui: &Ui, galley: &Galley, id: Id) -> Result<bool, TextEditorError> {
         let mut signal_change = false;
 
         let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
 
         for event in &events {
-            let cursor: Option<CursorRange> = match event {
+            let cursor_range: Option<CursorRange> = match event {
                 Event::Text(text_to_insert) => {
-                    // Newlines are handled by `Key::Enter`.
-                    let len = self.text_buffer.len();
+                    let byte_len = self
+                        .text_buffer
+                        .write(self.cursor_range.anchor, text_to_insert)?;
 
-                    let _ = self.text_buffer.write(len, text_to_insert);
+                    let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
+                        &self.text_buffer,
+                        Direction::Forward,
+                        byte_len,
+                        Movement::Move,
+                    );
 
                     signal_change = true;
 
-                    None
+                    Some(cursor_range)
                 }
                 Event::Key {
                     key,
@@ -166,16 +173,41 @@ where
                         let _ = self.text_buffer.write(len, "\n");
                         None
                     }
-                    (Key::ArrowLeft, true) => None,
-                    (Key::ArrowRight, true) => None,
+                    (Key::ArrowLeft, true) => {
+                        let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
+                            &self.text_buffer,
+                            Direction::Backward,
+                            1,
+                            Movement::Move,
+                        );
+
+                        Some(cursor_range)
+                    }
+                    (Key::ArrowRight, true) => {
+                        let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
+                            &self.text_buffer,
+                            Direction::Forward,
+                            1,
+                            Movement::Move,
+                        );
+
+                        Some(cursor_range)
+                    }
                     _ => None,
                 },
 
                 _ => None,
             };
+
+            match cursor_range {
+                Some(cursor_range) => {
+                    *self.cursor_range = cursor_range;
+                }
+                None => {}
+            }
         }
 
-        signal_change
+        Ok(signal_change)
     }
 
     pub fn paint_cursor(
@@ -205,17 +237,20 @@ where
 
 impl<'buffer, Buffer: TextBuffer> egui::Widget for TextEditor<'buffer, Buffer> {
     fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
-        let mut state = Self::load_state(ui.ctx(), self.id).unwrap_or_default();
-
         let font_id = FontSelection::default().resolve(ui.style());
 
         let galley = self.layouter(ui, ui.available_width());
 
-        let signal = self.events(&mut state, ui, &galley);
-
         let desired_size = self.size(ui, galley.size(), &font_id);
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
+
+        let id = ui.make_persistent_id(self.id);
+
+        let signal = match self.events(ui, &galley, id) {
+            Ok(signal) => signal,
+            Err(_) => false,
+        };
 
         let sense = Sense::click_and_drag();
 
@@ -262,22 +297,12 @@ impl TextEditorState {
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
+
+    pub fn set_cursor_range(&mut self, cursor_range: CursorRange) {
+        self.cursor_range = cursor_range;
+    }
 }
 
 impl<'buffer, Buffer: TextBuffer> egui::WidgetWithState for TextEditor<'buffer, Buffer> {
     type State = TextEditorState;
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum MotionMode {
-    Delete { count: usize },
-    Yank { count: usize },
-    Indent,
-    Outdent,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum CursorMode {
-    Normal(usize),
-    // Insert(Selection),
 }

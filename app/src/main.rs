@@ -1,12 +1,12 @@
 use app::{
     easy_mark_editor::{self, EasyMarkEditor},
     formatting::Formatting,
-    widgets::rich_text_editor::editor::TextEditor,
+    widgets::rich_text_editor::editor_view::TextEditor,
 };
 use bluebook_core::text_buffer::TextBuffer;
 use bluebook_core::{buffer::peritext_buffer::buffer_impl::Peritext, selection::CursorRange};
 use eframe::{self, egui};
-use egui::{Align2, Id, ScrollArea, Vec2, Widget};
+use egui::{epaint::text::cursor::Cursor, Align2, Id, ScrollArea, Vec2, Widget};
 use peritext::Style;
 use serde_json::json;
 use string_cache::Atom;
@@ -14,6 +14,7 @@ use string_cache::Atom;
 // #[derive(serde::Deserialize, serde::Serialize)]
 struct TextEditApp {
     buf: Peritext,
+    cursor_range: CursorRange,
 }
 
 impl TextEditApp {
@@ -24,15 +25,18 @@ impl TextEditApp {
         // for e.g. egui::PaintCallback.
 
         let buf = Peritext::new(1);
+        let cursor_range = CursorRange::default();
 
-        Self { buf }
+        Self { buf, cursor_range }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
+        println!("{:?}, {:?}", &self.cursor_range, &self.buf.take());
+
         let editor = TextEditor::<Peritext>::new(
             Id::new("text_editor"),
             &mut self.buf,
-            CursorRange::default(),
+            &mut self.cursor_range,
             Vec2::ZERO,
             Align2::CENTER_CENTER,
         );

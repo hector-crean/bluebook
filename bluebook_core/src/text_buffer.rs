@@ -62,7 +62,7 @@ pub trait TextBuffer {
     fn cursor(&self, position: usize) -> Option<Self::Cursor<'_>>;
     // ^ should I specify cursors?
 
-    fn write(&mut self, offset: usize, s: &str) -> Result<(), TextBufferError>;
+    fn write<'a>(&mut self, offset: usize, s: &'a str) -> Result<usize, TextBufferError>;
 
     fn replace_range<R>(&mut self, range: R, replace_with: &str)
     where

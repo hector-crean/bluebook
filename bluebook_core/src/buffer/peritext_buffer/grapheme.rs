@@ -6,7 +6,6 @@
 #![allow(dead_code)]
 
 // use std::str::pattern::Pattern;
-use core::cmp;
 use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
 
 #[derive(Clone, Debug)]
@@ -53,15 +52,23 @@ impl<'a> Iterator for Graphemes<'a> {
     type Item = GraphemeIterItem;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let next_idx = self.gc.next_boundary(self.slice, 0).unwrap().unwrap();
-        Some(GraphemeIterItem::new(next_idx))
+        let next_idx = self.gc.next_boundary(self.slice, 0).unwrap();
+
+        match next_idx {
+            Some(next_idx) => Some(GraphemeIterItem::new(next_idx)),
+            None => None,
+        }
     }
 }
 
 impl<'a> DoubleEndedIterator for Graphemes<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let prev_idx = self.gc.prev_boundary(self.slice, 0).unwrap().unwrap();
-        Some(GraphemeIterItem::new(prev_idx))
+        let prev_idx = self.gc.prev_boundary(self.slice, 0).unwrap();
+
+        match prev_idx {
+            Some(prev_idx) => Some(GraphemeIterItem::new(prev_idx)),
+            None => None,
+        }
     }
 }
 
@@ -71,6 +78,7 @@ pub fn nth_next_grapheme_boundary<'a>(
     n: usize,
 ) -> Option<GraphemeIterItem> {
     let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_idx);
+
     graphemes.nth(n)
 }
 
@@ -81,4 +89,17 @@ pub fn nth_prev_grapheme_boundary<'a>(
 ) -> Option<GraphemeIterItem> {
     let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_idx);
     graphemes.nth_back(n)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nth_grapheme() {
+        let s = "hello, this is some text";
+        let mut graphemes = Graphemes::new(&s, false).set_cursor_offet(0);
+
+        assert_eq!(graphemes.nth(3).unwrap().byte_offset, 3);
+    }
 }

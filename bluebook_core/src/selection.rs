@@ -218,17 +218,17 @@ impl CursorRange {
     pub fn put_block_cursor<B: TextBuffer>(
         self,
         buffer: &B,
-        char_idx: usize,
+        byte_idx: usize,
         extend: bool,
     ) -> CursorRange {
         if extend {
-            let anchor = if self.head >= self.anchor && char_idx < self.anchor {
+            let anchor = if self.head >= self.anchor && byte_idx < self.anchor {
                 let cursor = buffer.cursor(self.anchor);
                 match cursor {
                     Some(anchor) => anchor.next_grapheme_offset(),
                     None => None,
                 }
-            } else if self.head < self.anchor && char_idx >= self.anchor {
+            } else if self.head < self.anchor && byte_idx >= self.anchor {
                 let cursor = buffer.cursor(self.anchor);
                 match cursor {
                     Some(anchor) => anchor.prev_grapheme_offset(),
@@ -240,8 +240,8 @@ impl CursorRange {
 
             match anchor {
                 Some(anchor) => {
-                    if anchor <= char_idx {
-                        let cursor = buffer.cursor(char_idx);
+                    if anchor <= byte_idx {
+                        let cursor = buffer.cursor(byte_idx);
                         let next = match cursor {
                             Some(anchor) => anchor.next_grapheme_offset(),
                             None => None,
@@ -249,13 +249,13 @@ impl CursorRange {
 
                         CursorRange::new(anchor, next.unwrap())
                     } else {
-                        CursorRange::new(anchor, char_idx)
+                        CursorRange::new(anchor, byte_idx)
                     }
                 }
-                None => CursorRange::point(char_idx),
+                None => CursorRange::point(byte_idx),
             }
         } else {
-            CursorRange::point(char_idx)
+            CursorRange::point(byte_idx)
         }
     }
 }

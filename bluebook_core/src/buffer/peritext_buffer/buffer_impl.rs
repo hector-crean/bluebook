@@ -62,10 +62,10 @@ impl TextBuffer for Peritext {
         }
     }
 
-    fn write(&mut self, offset: usize, s: &str) -> Result<(), TextBufferError> {
+    fn write<'a>(&mut self, offset: usize, s: &'a str) -> Result<usize, TextBufferError> {
         self.inner.insert(offset, s);
 
-        Ok(())
+        Ok(s.len())
     }
 
     fn replace_range<R>(&mut self, range: R, replace_with: &str)

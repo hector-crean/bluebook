@@ -1,8 +1,5 @@
 use crate::text_buffer_cursor::TextBufferCursor;
-use crate::{
-    buffer::peritext_buffer::grapheme::nth_next_grapheme_boundary, selection::CursorRange,
-    text_buffer::TextBuffer,
-};
+use crate::{selection::CursorRange, text_buffer::TextBuffer};
 
 use std::{cmp::Reverse, iter};
 
@@ -21,24 +18,26 @@ pub enum Movement {
 impl CursorRange {
     pub fn move_horizontally<B: TextBuffer>(
         self,
-        buffer: B,
+        buffer: &B,
         dir: Direction,
         count: usize,
         behaviour: Movement,
     ) -> CursorRange {
-        let head_cursor = buffer.cursor(self.head);
+        let anchor_cursor = buffer.cursor(self.anchor);
 
-        let new_pos = match head_cursor {
-            Some(head_cursor) => match dir {
-                Direction::Forward => head_cursor.nth_next_grapheme_boundary(count),
-                Direction::Backward => head_cursor.nth_prev_grapheme_boundary(count),
+        let new_pos = match anchor_cursor {
+            Some(cursor) => match dir {
+                Direction::Forward => cursor.nth_next_grapheme_boundary(count),
+                Direction::Backward => cursor.nth_prev_grapheme_boundary(count),
             },
             None => None,
         };
 
+        println!("{:?}", &new_pos);
+
         let cursor_range = self.put_block_cursor(
-            &buffer,
-            new_pos.unwrap_or(self.head),
+            buffer,
+            new_pos.unwrap_or(self.anchor),
             behaviour == Movement::Extend,
         );
 
