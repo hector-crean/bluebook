@@ -98,8 +98,8 @@ mod tests {
     #[test]
     fn nth_grapheme() {
         let s = "hello, this is some text";
-        let mut graphemes = Graphemes::new(&s, false).set_cursor_offet(0);
+        let mut graphemes = Graphemes::new(&s, false).set_cursor_offet(s.len());
 
-        assert_eq!(graphemes.nth(3).unwrap().byte_offset, 3);
+        assert_eq!(graphemes.nth_back(1).unwrap().byte_offset, s.len() - 2);
     }
 }
