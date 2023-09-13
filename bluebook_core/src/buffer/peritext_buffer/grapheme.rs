@@ -95,10 +95,76 @@ pub fn nth_prev_grapheme_boundary<'a>(
 mod tests {
     use super::*;
 
+    const TEXT: &str = "\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    Hello there!  How're you doing?  It's a fine day, \
+    isn't it?  Aren't you glad we're alive?\r\n\
+    こんにちは！元気ですか？日はいいですね。\
+    私たちが生きだって嬉しいではないか？\r\n\
+    ";
+
     #[test]
     fn nth_grapheme() {
-        let s = "hello, this is some text";
-        let mut graphemes = Graphemes::new(&s, false).set_cursor_offet(s.len());
+        let mut graphemes = Graphemes::new(&TEXT, false).set_cursor_offet(s.len());
 
         assert_eq!(graphemes.nth_back(1).unwrap().byte_offset, s.len() - 2);
     }
