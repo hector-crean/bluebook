@@ -37,6 +37,24 @@ impl TextBuffer for Peritext {
     type SpanItem = rich_text::Span;
     type SpanIter<'spans> = rich_text::iter::Iter<'spans> where Self: 'spans;
 
+    fn cursor(
+        &self,
+        anchor_byte_offset: usize,
+        head_byte_offset: usize,
+    ) -> Option<Self::Cursor<'_>> {
+        let new_cursor = PeritextCursor {
+            buffer: self.inner.to_string().into(),
+            anchor: anchor_byte_offset,
+            head: head_byte_offset,
+        };
+
+        if new_cursor.is_grapheme_boundary() {
+            Some(new_cursor)
+        } else {
+            None
+        }
+    }
+
     // pub fn iter(&self) -> impl Iterator<Item = Span> + '_ {
     fn annotate<R>(&mut self, range: R, annotation: peritext::Style)
     where
@@ -49,26 +67,17 @@ impl TextBuffer for Peritext {
         rich_text::iter::Iter::new(&self.inner)
     }
 
-    fn cursor(&self, _position: usize) -> Option<Self::Cursor<'_>> {
-        let new_cursor = PeritextCursor {
-            slice: self.inner.to_string().into(),
-            position: _position,
-        };
-
-        if new_cursor.is_grapheme_boundary() {
-            Some(new_cursor)
-        } else {
-            None
-        }
-    }
-
     fn write<'a>(&mut self, offset: usize, s: &'a str) -> Result<usize, TextBufferError> {
         self.inner.insert(offset, s);
 
-        Ok(s.len())
+        Ok(offset + s.len())
     }
 
-    fn replace_range<R>(&mut self, range: R, replace_with: &str)
+    fn replace_range<R>(
+        &mut self,
+        range: R,
+        replace_with: &str,
+    ) -> Result<Range<usize>, TextBufferError>
     where
         R: RangeBounds<usize>,
     {
@@ -86,6 +95,11 @@ impl TextBuffer for Peritext {
 
         self.inner.delete(start..end);
         self.inner.insert(start, replace_with);
+
+        Ok(Range {
+            start,
+            end: start + replace_with.len(),
+        })
     }
     // fn edit(&mut self, range: Range<usize>, new: impl Into<String>) {
     //     self.replace_range(range, &new.into());

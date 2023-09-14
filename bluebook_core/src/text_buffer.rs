@@ -59,12 +59,21 @@ pub trait TextBuffer {
     /// Create a cursor with a reference to the text and a offset position.
     ///
     /// Returns None if the position isn't a codepoint boundary.
-    fn cursor(&self, position: usize) -> Option<Self::Cursor<'_>>;
+    fn cursor(&self, anchor_byte_offset: usize, head_bye_offsrt: usize)
+        -> Option<Self::Cursor<'_>>;
     // ^ should I specify cursors?
 
     fn write<'a>(&mut self, offset: usize, s: &'a str) -> Result<usize, TextBufferError>;
 
-    fn replace_range<R>(&mut self, range: R, replace_with: &str)
+    fn drain<R>(&mut self, range: R) -> Result<&str, TextBufferError>
+    where
+        R: RangeBounds<usize>;
+
+    fn replace_range<R>(
+        &mut self,
+        range: R,
+        replace_with: &str,
+    ) -> Result<Range<usize>, TextBufferError>
     where
         R: RangeBounds<usize>;
 

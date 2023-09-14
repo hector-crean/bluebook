@@ -1,10 +1,10 @@
 pub mod buffer;
 pub mod command;
 pub mod editor;
+pub mod error;
 pub mod line;
 pub mod line_ending;
 pub mod movement;
-pub mod selection;
 pub mod span;
 pub mod text_buffer;
 pub mod text_buffer_cursor;

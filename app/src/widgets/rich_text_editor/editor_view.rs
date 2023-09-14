@@ -23,8 +23,10 @@ use crate::formatting::{Formatting, TextFormatBuilder};
 
 #[derive(thiserror::Error, Debug)]
 pub enum TextEditorError {
-    #[error("Text Buffer Error")]
+    #[error(transparent)]
     TextBufferError(#[from] bluebook_core::text_buffer::TextBufferError),
+    #[error(transparent)]
+    TextBufferCursorError(#[from] bluebook_core::text_buffer_cursor::TextBufferCursorError),
 }
 
 pub struct TextEditor<'buffer, Buffer>
@@ -33,7 +35,7 @@ where
 {
     id: Id,
     text_buffer: &'buffer mut Buffer,
-    cursor_range: &'buffer mut CursorRange,
+    cursor_range: Range<usize>,
     margin: Vec2,
     align: Align2,
 }
@@ -45,7 +47,7 @@ where
     pub fn new(
         id: Id,
         text_buffer: &'buffer mut Buffer,
-        cursor_range: &'buffer mut CursorRange,
+        cursor_range: Range<usize>,
         margin: Vec2,
         align: Align2,
     ) -> Self {
@@ -140,20 +142,18 @@ where
         for event in &events {
             let cursor_range: Option<CursorRange> = match event {
                 Event::Text(text_to_insert) => {
-                    let byte_len = self
+                    let byte_offset = self
                         .text_buffer
-                        .write(self.cursor_range.anchor, text_to_insert)?;
+                        .write(self.cursor_range.start, text_to_insert)?;
 
-                    let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
-                        &self.text_buffer,
-                        Direction::Forward,
-                        byte_len,
-                        Movement::Move,
-                    );
+                    let cursor_range = self
+                        .text_buffer
+                        .cursor(byte_offset, byte_offset)
+                        .map(|cursor| cursor.head());
 
                     signal_change = true;
 
-                    Some(cursor_range)
+                    cursor_range
                 }
                 Event::Key {
                     key,
@@ -162,11 +162,21 @@ where
                     modifiers,
                 } => match (key, pressed) {
                     (Key::Backspace | Key::Delete, true) => {
-                        let len = self.text_buffer.len();
-                        if len >= 1 {
-                            let _ = self.text_buffer.replace_range(len - 1..len, "");
-                        }
-                        None
+                        let new_cursor_range = self.text_buffer.cursor();
+
+                        move_horizontally::<Buffer>(
+                            &self.text_buffer,
+                            self.cursor_range.anchor,
+                            Direction::Backward,
+                            1,
+                            Movement::Move,
+                        );
+
+                        let replacement_range = self
+                            .text_buffer
+                            .replace_range(new_cursor_range.anchor..self.cursor_range.anchor, "")?;
+
+                        Some(CursorRange::point(replacement_range.start))
                     }
                     (Key::Enter, true) => {
                         let len = self.text_buffer.len();
@@ -176,6 +186,7 @@ where
                     (Key::ArrowLeft, true) => {
                         let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
                             &self.text_buffer,
+                            self.cursor_range.anchor,
                             Direction::Backward,
                             1,
                             Movement::Move,
@@ -186,6 +197,7 @@ where
                     (Key::ArrowRight, true) => {
                         let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
                             &self.text_buffer,
+                            self.cursor_range.anchor,
                             Direction::Forward,
                             1,
                             Movement::Move,

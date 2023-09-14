@@ -22,13 +22,13 @@ impl<'a> Graphemes<'a> {
             gc: GraphemeCursor::new(0, len, is_extended),
         }
     }
-    pub fn set_cursor_offet(mut self, byte_idx: usize) -> Self {
-        self.gc.set_cursor(byte_idx);
+    pub fn set_cursor_offet(mut self, byte_offset: usize) -> Self {
+        self.gc.set_cursor(byte_offset);
         self
     }
-    pub fn is_grapheme_boundary(mut self, byte_idx: usize) -> bool {
+    pub fn is_grapheme_boundary(mut self, byte_offset: usize) -> bool {
         loop {
-            match self.gc.is_boundary(self.slice, byte_idx) {
+            match self.gc.is_boundary(self.slice, byte_offset) {
                 Ok(n) => return n,
                 Err(GraphemeIncomplete::PreContext(n)) => {
                     // let (ctx_chunk, ctx_byte_start, _, _) = self.slice.chunk_at_byte(n - 1);
@@ -74,20 +74,20 @@ impl<'a> DoubleEndedIterator for Graphemes<'a> {
 
 pub fn nth_next_grapheme_boundary<'a>(
     slice: &'a str,
-    byte_idx: usize,
+    byte_offset: usize,
     n: usize,
 ) -> Option<GraphemeIterItem> {
-    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_idx);
+    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_offset);
 
     graphemes.nth(n)
 }
 
 pub fn nth_prev_grapheme_boundary<'a>(
     slice: &'a str,
-    byte_idx: usize,
+    byte_offset: usize,
     n: usize,
 ) -> Option<GraphemeIterItem> {
-    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_idx);
+    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_offset);
     graphemes.nth_back(n)
 }
 
@@ -164,8 +164,8 @@ mod tests {
 
     #[test]
     fn nth_grapheme() {
-        let mut graphemes = Graphemes::new(&TEXT, false).set_cursor_offet(s.len());
+        let mut graphemes = Graphemes::new(&TEXT, false).set_cursor_offet(TEXT.len());
 
-        assert_eq!(graphemes.nth_back(1).unwrap().byte_offset, s.len() - 2);
+        assert_eq!(graphemes.nth_back(1).unwrap().byte_offset, TEXT.len() - 2);
     }
 }

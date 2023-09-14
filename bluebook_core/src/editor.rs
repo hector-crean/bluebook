@@ -34,14 +34,14 @@ where
         }
     }
 
-    fn consume_edit_command(self, edit_command: EditCommand) {
-        use EditCommand::*;
-        match edit_command {
-            MoveLineDown => self.text_buffer.replace_range(.., ""),
-            MoveLineDown => {}
-            _ => {}
-        }
-    }
+    // fn consume_edit_command(self, edit_command: EditCommand) {
+    //     use EditCommand::*;
+    //     match edit_command {
+    //         MoveLineDown => self.text_buffer.replace_range(.., ""),
+    //         MoveLineDown => {}
+    //         _ => {}
+    //     }
+    // }
 }
 
 #[cfg(test)]

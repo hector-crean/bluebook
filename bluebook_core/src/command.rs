@@ -1,4 +1,11 @@
+use std::ops::{Range, RangeFrom};
+
 use strum::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
+
+use crate::{
+    text_buffer::{TextBuffer, TextBufferError},
+    text_buffer_cursor::TextBufferCursor,
+};
 // use strum_macros::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
 
 #[derive(
@@ -93,4 +100,31 @@ pub enum EditCommand {
     DuplicateLineDown,
 }
 
-impl EditCommand {}
+impl EditCommand {
+    fn emit_transaction(&self) -> Transaction {
+        todo!()
+    }
+}
+
+enum Transaction {
+    Insert { offset: usize, value: String },
+    Delete { range: Range<usize> },
+}
+
+impl Transaction {
+    fn consume_transaction<'buffer, B: TextBuffer>(
+        self,
+        buffer: &'buffer B,
+    ) -> Result<bool, TextBufferError> {
+        match self {
+            Self::Insert { offset, value } => {
+                buffer.write(offset, &value)?;
+                Ok(true)
+            }
+            Self::Delete { range } => {
+                let _ = buffer.drain(range)?;
+                Ok(true)
+            }
+        }
+    }
+}
