@@ -1,10 +1,9 @@
 use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use bluebook_core::{
-    buffer::peritext_buffer::buffer_impl::Peritext,
+    buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange},
     command::EditCommand,
     movement::{Direction, Movement},
-    selection::CursorRange,
     span::Span,
     text_buffer::TextBuffer,
     text_buffer_cursor::TextBufferCursor,
@@ -35,7 +34,7 @@ where
 {
     id: Id,
     text_buffer: &'buffer mut Buffer,
-    cursor_range: Range<usize>,
+    cursor_range: CursorRange,
     margin: Vec2,
     align: Align2,
 }
@@ -47,7 +46,7 @@ where
     pub fn new(
         id: Id,
         text_buffer: &'buffer mut Buffer,
-        cursor_range: Range<usize>,
+        cursor_range: CursorRange,
         margin: Vec2,
         align: Align2,
     ) -> Self {
@@ -137,87 +136,87 @@ where
     fn events(&mut self, ui: &Ui, galley: &Galley, id: Id) -> Result<bool, TextEditorError> {
         let mut signal_change = false;
 
-        let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
+        // let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
 
-        for event in &events {
-            let cursor_range: Option<CursorRange> = match event {
-                Event::Text(text_to_insert) => {
-                    let byte_offset = self
-                        .text_buffer
-                        .write(self.cursor_range.start, text_to_insert)?;
+        // for event in &events {
+        //     let cursor_range: Option<CursorRange> = match event {
+        //         Event::Text(text_to_insert) => {
+        //             let byte_offset = self
+        //                 .text_buffer
+        //                 .write(self.cursor_range.anchor, text_to_insert)?;
 
-                    let cursor_range = self
-                        .text_buffer
-                        .cursor(byte_offset, byte_offset)
-                        .map(|cursor| cursor.head());
+        //             let cursor_range = self
+        //                 .text_buffer
+        //                 .cursor(self.cursor_range)
+        //                 .map(|cursor| cursor.head());
 
-                    signal_change = true;
+        //             signal_change = true;
 
-                    cursor_range
-                }
-                Event::Key {
-                    key,
-                    pressed,
-                    repeat,
-                    modifiers,
-                } => match (key, pressed) {
-                    (Key::Backspace | Key::Delete, true) => {
-                        let new_cursor_range = self.text_buffer.cursor();
+        //             cursor_range
+        //         }
+        //         Event::Key {
+        //             key,
+        //             pressed,
+        //             repeat,
+        //             modifiers,
+        //         } => match (key, pressed) {
+        //             (Key::Backspace | Key::Delete, true) => {
+        //                 let new_cursor_range = self.text_buffer?.cursor();
 
-                        move_horizontally::<Buffer>(
-                            &self.text_buffer,
-                            self.cursor_range.anchor,
-                            Direction::Backward,
-                            1,
-                            Movement::Move,
-                        );
+        //                 move_horizontally::<Buffer>(
+        //                     &self.text_buffer,
+        //                     self.cursor_range.anchor,
+        //                     Direction::Backward,
+        //                     1,
+        //                     Movement::Move,
+        //                 );
 
-                        let replacement_range = self
-                            .text_buffer
-                            .replace_range(new_cursor_range.anchor..self.cursor_range.anchor, "")?;
+        //                 let replacement_range = self
+        //                     .text_buffer
+        //                     .replace_range(new_cursor_range.anchor..self.cursor_range.anchor, "")?;
 
-                        Some(CursorRange::point(replacement_range.start))
-                    }
-                    (Key::Enter, true) => {
-                        let len = self.text_buffer.len();
-                        let _ = self.text_buffer.write(len, "\n");
-                        None
-                    }
-                    (Key::ArrowLeft, true) => {
-                        let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
-                            &self.text_buffer,
-                            self.cursor_range.anchor,
-                            Direction::Backward,
-                            1,
-                            Movement::Move,
-                        );
+        //                 Some(CursorRange::point(replacement_range.start))
+        //             }
+        //             (Key::Enter, true) => {
+        //                 let len = self.text_buffer.len();
+        //                 let _ = self.text_buffer.write(len, "\n");
+        //                 None
+        //             }
+        //             (Key::ArrowLeft, true) => {
+        //                 let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
+        //                     &self.text_buffer,
+        //                     self.cursor_range.anchor,
+        //                     Direction::Backward,
+        //                     1,
+        //                     Movement::Move,
+        //                 );
 
-                        Some(cursor_range)
-                    }
-                    (Key::ArrowRight, true) => {
-                        let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
-                            &self.text_buffer,
-                            self.cursor_range.anchor,
-                            Direction::Forward,
-                            1,
-                            Movement::Move,
-                        );
+        //                 Some(cursor_range)
+        //             }
+        //             (Key::ArrowRight, true) => {
+        //                 let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
+        //                     &self.text_buffer,
+        //                     self.cursor_range.anchor,
+        //                     Direction::Forward,
+        //                     1,
+        //                     Movement::Move,
+        //                 );
 
-                        Some(cursor_range)
-                    }
-                    _ => None,
-                },
+        //                 Some(cursor_range)
+        //             }
+        //             _ => None,
+        //         },
 
-                _ => None,
-            };
+        //         _ => None,
+        //     };
 
-            match cursor_range {
-                Some(cursor_range) => {
-                    *self.cursor_range = cursor_range;
-                }
-                None => {}
-            }
-        }
+        //     match cursor_range {
+        //         Some(cursor_range) => {
+        //             *self.cursor_range = cursor_range;
+        //         }
+        //         None => {}
+        //     }
+        //}
 
         Ok(signal_change)
     }

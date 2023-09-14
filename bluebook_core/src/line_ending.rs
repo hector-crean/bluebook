@@ -103,17 +103,17 @@ impl LineEnding {
     }
 
     // #[inline]
-    pub fn from_text_buffer_slice<B: TextBuffer>(
-        buffer: B,
-        range: Range<usize>,
-    ) -> Option<LineEnding> {
-        let slice = buffer.slice(range);
+    // pub fn from_text_buffer_slice<B: TextBuffer>(
+    //     buffer: B,
+    //     range: Range<usize>,
+    // ) -> Option<LineEnding> {
+    //     let slice = buffer.slice(range);
 
-        match slice {
-            Some(ref slice) => LineEnding::from_str(slice),
-            None => None,
-        }
-    }
+    //     match slice {
+    //         Some(ref slice) => LineEnding::from_str(slice),
+    //         None => None,
+    //     }
+    // }
 }
 
 #[inline]

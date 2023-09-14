@@ -1,7 +1,11 @@
 use std::borrow::Cow;
 
 use super::grapheme::Graphemes;
-use crate::{movement::Movement, text_buffer::TextBuffer, text_buffer_cursor::TextBufferCursor};
+use crate::{
+    movement::Movement,
+    text_buffer::TextBuffer,
+    text_buffer_cursor::{TextBufferCursor, TextBufferCursorError},
+};
 use peritext::rich_text::cursor::Cursor;
 
 use crate::movement::Direction;
@@ -65,54 +69,83 @@ impl<'a> PeritextCursor<'a> {
     pub fn new(buffer: Cow<'a, str>) -> Self {
         Self {
             buffer,
-            cursor_range: CursorRange::new(0,0);
+            cursor_range: CursorRange::new(0, 0),
         }
     }
 }
 
 impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
+    fn anchor(&self) -> usize {
+        self.cursor_range.anchor
+    }
+    fn head(&self) -> usize {
+        self.cursor_range.head
+    }
+    fn set_anchor(mut self, byte_offset: usize) -> Self {
+        self.cursor_range.anchor = byte_offset;
+        self
+    }
+    fn set_head(mut self, byte_offset: usize) -> Self {
+        self.cursor_range.head = byte_offset;
+        self
+    }
+
     fn is_grapheme_boundary(&self) -> bool {
         let mut graphemes = Graphemes::new(&self.buffer, false);
 
-        graphemes.is_grapheme_boundary(self.head)
+        graphemes.is_grapheme_boundary(self.cursor_range.head)
     }
 
     fn next_grapheme_offset(&self) -> Option<usize> {
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(self.head);
+        let CursorRange { head, anchor } = self.cursor_range;
+
+        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
 
         graphemes.next().map(|item| item.byte_offset)
     }
 
     fn prev_grapheme_offset(&self) -> Option<usize> {
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(self.head);
+        let CursorRange { head, anchor } = self.cursor_range;
+
+        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
 
         graphemes.next_back().map(|item| item.byte_offset)
     }
 
-    fn nth_next_grapheme_boundary(&self, n: usize) -> Option<usize> {
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(self.head);
+    fn nth_next_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
+        let CursorRange { head, anchor } = self.cursor_range;
 
-        graphemes.nth(n).map(|item| item.byte_offset)
+        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
+
+        graphemes
+            .nth(n)
+            .map(|item| item.byte_offset)
+            .ok_or(TextBufferCursorError::NextGraphemeOffsetError)
     }
-    fn nth_prev_grapheme_boundary(&self, n: usize) -> Option<usize> {
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(self.head);
+    fn nth_prev_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
+        let CursorRange { head, anchor } = self.cursor_range;
 
-        graphemes.nth_back(n).map(|item| item.byte_offset)
+        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
+
+        graphemes
+            .nth_back(n)
+            .map(|item| item.byte_offset)
+            .ok_or(TextBufferCursorError::PrevGraphemeOffsetError)
     }
 
-    fn move_head_horizontally(self, dir: Direction, count: usize, behaviour: Movement) -> Self {
-        let head_byte_offset = match dir {
-            Direction::Forward => self.nth_next_grapheme_boundary(count),
-            Direction::Backward => self.nth_prev_grapheme_boundary(count),
-        };
+    // fn move_head_horizontally(self, dir: Direction, count: usize, behaviour: Movement) -> Self {
+    //     let head_byte_offset = match dir {
+    //         Direction::Forward => self.nth_next_grapheme_boundary(count),
+    //         Direction::Backward => self.nth_prev_grapheme_boundary(count),
+    //     };
 
-        let cursor = match head_byte_offset {
-            Some(head_byte_offset) => self.set_head(head_byte_offset),
-            None => self,
-        };
+    //     let cursor = match head_byte_offset {
+    //         Some(head_byte_offset) => self.set_head(head_byte_offset),
+    //         None => self,
+    //     };
 
-        cursor
-    }
+    //     cursor
+    // }
 }
 
 pub fn len_utf8_from_first_byte(b: u8) -> usize {
@@ -132,7 +165,7 @@ pub struct CursorRange {
 
 impl CursorRange {
     pub fn new(anchor: usize, head: usize) -> Self {
-        Self { anchor, head}
+        Self { anchor, head }
     }
     /// Start of the range.
     #[inline]
@@ -228,40 +261,4 @@ impl CursorRange {
     }
 
     // groupAt
-
-    /// Returns the text inside this range given the text of the whole buffer.
-    ///
-    /// The returned `Cow` is a reference if the range of text is inside a single
-    /// chunk of the rope. Otherwise a copy of the text is returned. Consider
-    /// using `slice` instead if you do not need a `Cow` or `String` to avoid copying.
-    #[inline]
-    pub fn fragment<'a, 'b: 'a, B: TextBuffer>(&'a self, text: &'b B) -> Option<Cow<'b, str>> {
-        self.slice(text)
-    }
-
-    /// Returns the text inside this range given the text of the whole buffer.
-    ///
-    /// The returned value is a reference to the passed slice. This method never
-    /// copies any contents.
-    #[inline]
-    pub fn slice<'a, 'b: 'a, B: TextBuffer>(&'a self, text: &'b B) -> Option<Cow<'b, str>> {
-        text.slice(self.from()..self.to())
-    }
-
-    //--------------------------------
-    // Block-cursor methods.
-
-    /// Gets the left-side position of the block cursor.
-    #[must_use]
-    #[inline]
-    pub fn block_cursor<B: TextBuffer>(self, buffer: B) -> Option<usize> {
-        if self.head > self.anchor {
-            match buffer.cursor(self.anchor, self.head) {
-                Some(head) => head.prev_grapheme_offset(),
-                None => None,
-            }
-        } else {
-            Some(self.head)
-        }
-    }
 }

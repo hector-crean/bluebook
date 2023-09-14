@@ -3,6 +3,8 @@ use std::ops::{Range, RangeFrom};
 use strum::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
 
 use crate::{
+    buffer::peritext_buffer::cursor_impl::CursorRange,
+    error::TextEditorError,
     text_buffer::{TextBuffer, TextBufferError},
     text_buffer_cursor::TextBufferCursor,
 };
@@ -101,7 +103,15 @@ pub enum EditCommand {
 }
 
 impl EditCommand {
-    fn emit_transaction(&self) -> Transaction {
+    fn emit_transaction<'ctx, B: TextBuffer<'ctx>>(
+        &self,
+        buf: B,
+        cursor_range: CursorRange,
+    ) -> Result<Transaction, TextEditorError> {
+        let cursor = buf.cursor(cursor_range)?;
+
+        let offset = cursor.next_grapheme_offset();
+
         todo!()
     }
 }
@@ -112,10 +122,10 @@ enum Transaction {
 }
 
 impl Transaction {
-    fn consume_transaction<'buffer, B: TextBuffer>(
+    fn consume_transaction<'ctx, B: TextBuffer<'ctx>>(
         self,
-        buffer: &'buffer B,
-    ) -> Result<bool, TextBufferError> {
+        buffer: &'ctx mut B,
+    ) -> Result<bool, TextEditorError> {
         match self {
             Self::Insert { offset, value } => {
                 buffer.write(offset, &value)?;

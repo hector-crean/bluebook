@@ -11,15 +11,17 @@ pub enum TextBufferCursorError {
     NextGraphemeOffsetError,
     #[error("write error: {content:?}")]
     WriteError { content: String },
+    #[error("byte offset {byte_offset:?} is not a codepoint boundary")]
+    CodepointBoundaryError { byte_offset: usize },
 }
 
 pub trait TextBufferCursor<'cursor> {
-    /// Set cursor position.
+    // /// Set cursor position.
     fn set_anchor(self, byte_offset: usize) -> Self;
 
     fn set_head(self, byte_offset: usize) -> Self;
 
-    /// Get cursor position.
+    // /// Get cursor position.
     fn anchor(&self) -> usize;
 
     fn head(&self) -> usize;
@@ -37,7 +39,7 @@ pub trait TextBufferCursor<'cursor> {
     /// Check if cursor position is at a codepoint boundary.
     fn is_grapheme_boundary(&self) -> bool;
 
-    fn move_head_horizontally(self, dir: Direction, count: usize, behaviour: Movement) -> Self;
+    // fn move_head_horizontally(self, dir: Direction, count: usize, behaviour: Movement) -> Self;
 
     // /// Get the previous word offset from the given offset, if it exists.
     // fn prev_word_offset(&self, offset: usize) -> Option<usize>;

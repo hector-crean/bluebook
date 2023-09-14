@@ -1,5 +1,5 @@
-use super::cursor_impl::PeritextCursor;
-use crate::text_buffer_cursor::TextBufferCursor;
+use super::cursor_impl::{CursorRange, PeritextCursor};
+use crate::text_buffer_cursor::{TextBufferCursor, TextBufferCursorError};
 use crate::{
     span::Span,
     text_buffer::{TextBuffer, TextBufferError},
@@ -32,26 +32,23 @@ impl Peritext {
     }
 }
 
-impl TextBuffer for Peritext {
+impl TextBuffer<'_> for Peritext {
     type Cursor<'cursor> = PeritextCursor<'cursor> where Self:'cursor;
     type SpanItem = rich_text::Span;
     type SpanIter<'spans> = rich_text::iter::Iter<'spans> where Self: 'spans;
 
-    fn cursor(
-        &self,
-        anchor_byte_offset: usize,
-        head_byte_offset: usize,
-    ) -> Option<Self::Cursor<'_>> {
+    fn cursor(&self, cursor_range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError> {
         let new_cursor = PeritextCursor {
             buffer: self.inner.to_string().into(),
-            anchor: anchor_byte_offset,
-            head: head_byte_offset,
+            cursor_range,
         };
 
         if new_cursor.is_grapheme_boundary() {
-            Some(new_cursor)
+            Ok(new_cursor)
         } else {
-            None
+            Err(TextBufferCursorError::CodepointBoundaryError {
+                byte_offset: cursor_range.head,
+            })
         }
     }
 
@@ -71,6 +68,13 @@ impl TextBuffer for Peritext {
         self.inner.insert(offset, s);
 
         Ok(offset + s.len())
+    }
+
+    fn drain<R>(&mut self, range: R) -> Result<&str, TextBufferError>
+    where
+        R: RangeBounds<usize>,
+    {
+        todo!()
     }
 
     fn replace_range<R>(

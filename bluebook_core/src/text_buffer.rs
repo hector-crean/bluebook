@@ -1,4 +1,7 @@
-use crate::span::Span;
+use crate::{
+    buffer::peritext_buffer::cursor_impl::CursorRange, span::Span,
+    text_buffer_cursor::TextBufferCursorError,
+};
 
 use super::text_buffer_cursor::TextBufferCursor;
 
@@ -38,7 +41,7 @@ This design effectively locks the TextBuffer during the draining process. Once t
 //     }
 // }
 
-pub trait TextBuffer {
+pub trait TextBuffer<'ctx> {
     //The where Self: 'cursor clause is crucial. It ensures that any reference held by the Cursor type must outlive the 'cursor lifetime.
     //Indicates that the Cursor cannot outlive the TextBuffer it is derived from.
     type Cursor<'cursor>: TextBufferCursor<'cursor>
@@ -59,8 +62,7 @@ pub trait TextBuffer {
     /// Create a cursor with a reference to the text and a offset position.
     ///
     /// Returns None if the position isn't a codepoint boundary.
-    fn cursor(&self, anchor_byte_offset: usize, head_bye_offsrt: usize)
-        -> Option<Self::Cursor<'_>>;
+    fn cursor(&self, range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError>;
     // ^ should I specify cursors?
 
     fn write<'a>(&mut self, offset: usize, s: &'a str) -> Result<usize, TextBufferError>;
@@ -93,3 +95,7 @@ pub trait TextBuffer {
     /// Construct an instance of this type from a `&str`.
     fn from_str(s: &str) -> Self;
 }
+
+// fn drain(&mut self, range: R) -> Result<impl Iterator<Item = E> + '_, TextBufferCursorError>
+// where
+//     R: RangeBounds<usize>;
