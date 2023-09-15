@@ -1,24 +1,26 @@
 use std::{any::Any, marker::PhantomData};
 
+use crate::text_buffer_cursor::TextBufferCursor;
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange,
-    command::EditCommand,
+    command::Transaction,
     context::{FromContext, Handler},
     error::TextEditorError,
     text_buffer::{TextBuffer, TextBufferError},
 };
 use serde::{Deserialize, Serialize};
-
 mod msg {
+
+    use crate::command::Transaction;
 
     use super::*;
 
-    pub fn edit<'ctx, B: TextBuffer<'ctx>>(buffer: &B) -> Result<EditCommand, TextEditorError> {
+    pub fn edit<'ctx, B: TextBuffer>(buffer: &B) -> Result<Transaction, TextEditorError> {
         // let offset = buffer.write(0, "hello, my name is Hector")?;
 
         let cursor = buffer.cursor(CursorRange { anchor: 0, head: 0 })?;
 
-        Ok(EditCommand::Append)
+        Ok(Transaction::Append)
     }
 }
 
@@ -38,17 +40,17 @@ pub enum CursorMode {
 
 pub struct TextEditorContext<'ctx, Buffer>
 where
-    Buffer: TextBuffer<'ctx>,
+    Buffer: TextBuffer,
 {
-    text_buffer: &'ctx mut Buffer,
-    cursor_range: &'ctx mut CursorRange,
+    pub text_buffer: &'ctx mut Buffer,
+    pub cursor_range: &'ctx mut CursorRange,
     // cursor_mode: CursorMode,
     // motion_mode: MotionMode,
 }
 
 impl<'ctx, Buffer> TextEditorContext<'ctx, Buffer>
 where
-    Buffer: TextBuffer<'ctx>,
+    Buffer: TextBuffer,
 {
     pub fn new(
         text_buffer: impl Into<&'ctx mut Buffer>,
@@ -60,6 +62,63 @@ where
         }
     }
 
+    pub fn consume_transaction<B: TextBuffer>(
+        self,
+        transaction: Transaction,
+    ) -> Result<bool, TextEditorError> {
+        let Self {
+            text_buffer,
+            cursor_range,
+        } = self;
+        match transaction {
+            Transaction::DeleteSelection => match cursor_range.is_empty() {
+                true => Ok(false),
+                false => {
+                    let CursorRange { anchor, head } = *cursor_range;
+                    let _ = text_buffer.drain(anchor..head)?;
+                    Ok(true)
+                }
+            },
+            Transaction::InsertAtCursorHead { value: s } | Transaction::Paste { clipboard: s } => {
+                let CursorRange { head, .. } = *cursor_range;
+                text_buffer.write(head, &s)?;
+                Ok(true)
+            }
+            Transaction::MoveCursorHeadTo { offset } => {
+                let r = CursorRange::new(cursor_range.anchor, offset);
+
+                let cursor = text_buffer.cursor(r)?;
+
+                cursor_range.set(cursor.range());
+
+                Ok(true)
+            }
+            Transaction::MoveCursorLeft { grapheme_count } => {
+                let cursor = text_buffer.cursor(*cursor_range)?;
+
+                let offset = cursor.nth_prev_grapheme_boundary(grapheme_count)?;
+
+                cursor_range.set_head(offset);
+
+                Ok(true)
+            }
+            Transaction::MoveCursorRight { grapheme_count } => {
+                let cursor = text_buffer.cursor(*cursor_range)?;
+
+                let offset = cursor.nth_next_grapheme_boundary(grapheme_count)?;
+
+                cursor_range.set_head(offset);
+
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    // pub fn send_events(&'ctx mut self) -> Result<Transaction, TextEditorError> {
+
+    // }
+
     pub fn send<T, H, R>(&'ctx self, handler: H) -> R
     where
         H: Handler<'ctx, Self, T, R>,
@@ -68,12 +127,12 @@ where
         handler.call(self)
     }
 
-    fn commands(&'ctx self) -> Result<EditCommand, TextEditorError> {
+    fn commands(&'ctx self) -> Result<Transaction, TextEditorError> {
         self.send(msg::edit)
     }
 
-    fn event_reader(mut self, edit_command: EditCommand) -> Result<bool, TextEditorError> {
-        use EditCommand::*;
+    fn event_reader(mut self, edit_command: Transaction) -> Result<bool, TextEditorError> {
+        use Transaction::*;
         match edit_command {
             MoveLineDown => Ok(true),
             _ => Ok(true),
@@ -81,14 +140,14 @@ where
     }
 }
 
-impl<'ctx, Buffer: TextBuffer<'ctx>> FromContext<'ctx> for &'ctx Buffer {
+impl<'ctx, Buffer: TextBuffer> FromContext<'ctx> for &'ctx Buffer {
     type Context = TextEditorContext<'ctx, Buffer>;
     fn from_context(context: &'ctx Self::Context) -> Self {
         &context.text_buffer
     }
 }
 
-// impl<'ctx, Buffer: TextBuffer<'ctx>> FromContext<'ctx> for &'ctx CursorRange {
+// impl<'ctx, Buffer: TextBuffer> FromContext<'ctx> for &'ctx CursorRange {
 //     type Context = TextEditorContext<'ctx, Buffer>;
 //     type Marker = PhantomData<Buffer>;
 

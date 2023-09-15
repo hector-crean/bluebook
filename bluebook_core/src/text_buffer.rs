@@ -41,7 +41,7 @@ This design effectively locks the TextBuffer during the draining process. Once t
 //     }
 // }
 
-pub trait TextBuffer<'ctx> {
+pub trait TextBuffer {
     //The where Self: 'cursor clause is crucial. It ensures that any reference held by the Cursor type must outlive the 'cursor lifetime.
     //Indicates that the Cursor cannot outlive the TextBuffer it is derived from.
     type Cursor<'cursor>: TextBufferCursor<'cursor>

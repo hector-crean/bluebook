@@ -5,15 +5,14 @@ use strum::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange,
     error::TextEditorError,
+    span::Annotation,
     text_buffer::{TextBuffer, TextBufferError},
     text_buffer_cursor::TextBufferCursor,
 };
 // use strum_macros::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
 
-#[derive(
-    Display, EnumString, EnumIter, Clone, PartialEq, Eq, Debug, EnumMessage, IntoStaticStr,
-)]
-pub enum EditCommand {
+#[derive(Display, Clone, PartialEq, Eq, Debug, EnumMessage, IntoStaticStr)]
+pub enum Transaction {
     #[strum(serialize = "move_line_up")]
     MoveLineUp,
     #[strum(serialize = "move_line_down")]
@@ -46,7 +45,6 @@ pub enum EditCommand {
     DeleteToBeginningOfLine,
     #[strum(serialize = "delete_to_end_of_line")]
     DeleteToEndOfLine,
-
     #[strum(serialize = "delete_to_end_and_insert")]
     DeleteToEndOfLineAndInsert,
     #[strum(message = "Join Lines")]
@@ -77,7 +75,9 @@ pub enum EditCommand {
     #[strum(serialize = "yank")]
     Yank,
     #[strum(serialize = "paste")]
-    Paste,
+    Paste {
+        clipboard: String,
+    },
     #[strum(serialize = "paste_before")]
     PasteBefore,
     #[strum(serialize = "normal_mode")]
@@ -100,41 +100,26 @@ pub enum EditCommand {
     DuplicateLineUp,
     #[strum(serialize = "duplicate_line_down")]
     DuplicateLineDown,
+    InsertAtCursorHead {
+        value: String,
+    },
+    DeleteSelection,
+    Annotate {
+        range: Annotation,
+    },
+    RemoveAnnotation,
+    MoveCursorHeadTo {
+        offset: usize,
+    },
+    MoveCursorAnchorTo {
+        offset: usize,
+    },
+    MoveCursorLeft {
+        grapheme_count: usize,
+    },
+    MoveCursorRight {
+        grapheme_count: usize,
+    },
 }
 
-impl EditCommand {
-    fn emit_transaction<'ctx, B: TextBuffer<'ctx>>(
-        &self,
-        buf: B,
-        cursor_range: CursorRange,
-    ) -> Result<Transaction, TextEditorError> {
-        let cursor = buf.cursor(cursor_range)?;
-
-        let offset = cursor.next_grapheme_offset();
-
-        todo!()
-    }
-}
-
-enum Transaction {
-    Insert { offset: usize, value: String },
-    Delete { range: Range<usize> },
-}
-
-impl Transaction {
-    fn consume_transaction<'ctx, B: TextBuffer<'ctx>>(
-        self,
-        buffer: &'ctx mut B,
-    ) -> Result<bool, TextEditorError> {
-        match self {
-            Self::Insert { offset, value } => {
-                buffer.write(offset, &value)?;
-                Ok(true)
-            }
-            Self::Delete { range } => {
-                let _ = buffer.drain(range)?;
-                Ok(true)
-            }
-        }
-    }
-}
+// use strum_macros::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};

@@ -32,7 +32,7 @@ impl Peritext {
     }
 }
 
-impl TextBuffer<'_> for Peritext {
+impl TextBuffer for Peritext {
     type Cursor<'cursor> = PeritextCursor<'cursor> where Self:'cursor;
     type SpanItem = rich_text::Span;
     type SpanIter<'spans> = rich_text::iter::Iter<'spans> where Self: 'spans;

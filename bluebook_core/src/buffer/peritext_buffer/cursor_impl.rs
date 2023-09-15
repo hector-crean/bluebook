@@ -90,6 +90,10 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
         self
     }
 
+    fn range(&self) -> CursorRange {
+        self.cursor_range
+    }
+
     fn is_grapheme_boundary(&self) -> bool {
         let mut graphemes = Graphemes::new(&self.buffer, false);
 
@@ -167,6 +171,21 @@ impl CursorRange {
     pub fn new(anchor: usize, head: usize) -> Self {
         Self { anchor, head }
     }
+
+    pub fn set(&mut self, range: Self) -> &Self {
+        self.anchor = range.anchor;
+        self.head = range.head;
+        self
+    }
+    pub fn set_head(&mut self, offset: usize) -> &Self {
+        self.head = offset;
+        self
+    }
+    pub fn set_anchor(&mut self, offset: usize) -> &Self {
+        self.anchor = offset;
+        self
+    }
+
     /// Start of the range.
     #[inline]
     #[must_use]

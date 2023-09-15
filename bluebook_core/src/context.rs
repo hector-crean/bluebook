@@ -28,59 +28,59 @@ where
     }
 }
 
-// impl<'ctx, C: 'ctx, T1, T2, T3, F, R> Handler<'ctx, C, (T1, T2, T3), R> for F
-// where
-//     F: FnMut(T1, T2, T3) -> R,
-//     T1: FromContext<'ctx, Context = C>,
-//     T2: FromContext<'ctx, Context = C>,
-//     T3: FromContext<'ctx, Context = C>,
-// {
-//     fn call(mut self, mut context: &'ctx mut C) -> R {
-//         (self)(
-//             T1::from_context(&mut context),
-//             T2::from_context(&mut context),
-//             T3::from_context(&mut context),
-//         )
-//     }
-// }
+impl<'ctx, C: 'ctx, T1, T2, T3, F, R> Handler<'ctx, C, (T1, T2, T3), R> for F
+where
+    F: FnMut(T1, T2, T3) -> R,
+    T1: FromContext<'ctx, Context = C>,
+    T2: FromContext<'ctx, Context = C>,
+    T3: FromContext<'ctx, Context = C>,
+{
+    fn call(mut self, context: &'ctx C) -> R {
+        (self)(
+            T1::from_context(context),
+            T2::from_context(context),
+            T3::from_context(context),
+        )
+    }
+}
 
-// impl<'ctx, C: 'ctx, T1, T2, T3, T4, F, R> Handler<'ctx, C, (T1, T2, T3, T4), R> for F
-// where
-//     F: FnMut(T1, T2, T3, T4) -> R,
-//     T1: FromContext<'ctx, Context = C>,
-//     T2: FromContext<'ctx, Context = C>,
-//     T3: FromContext<'ctx, Context = C>,
-//     T4: FromContext<'ctx, Context = C>,
-// {
-//     fn call(mut self, mut context: &'ctx mut C) -> R {
-//         (self)(
-//             T1::from_context(&mut context),
-//             T2::from_context(&mut context),
-//             T3::from_context(&mut context),
-//             T4::from_context(&mut context),
-//         )
-//     }
-// }
+impl<'ctx, C: 'ctx, T1, T2, T3, T4, F, R> Handler<'ctx, C, (T1, T2, T3, T4), R> for F
+where
+    F: FnMut(T1, T2, T3, T4) -> R,
+    T1: FromContext<'ctx, Context = C>,
+    T2: FromContext<'ctx, Context = C>,
+    T3: FromContext<'ctx, Context = C>,
+    T4: FromContext<'ctx, Context = C>,
+{
+    fn call(mut self, context: &'ctx C) -> R {
+        (self)(
+            T1::from_context(context),
+            T2::from_context(context),
+            T3::from_context(context),
+            T4::from_context(context),
+        )
+    }
+}
 
-// impl<'ctx, C: 'ctx, T1, T2, T3, T4, T5, F, R> Handler<'ctx, C, (T1, T2, T3, T4, T5), R> for F
-// where
-//     F: FnMut(T1, T2, T3, T4, T5) -> R,
-//     T1: FromContext<'ctx, Context = C>,
-//     T2: FromContext<'ctx, Context = C>,
-//     T3: FromContext<'ctx, Context = C>,
-//     T4: FromContext<'ctx, Context = C>,
-//     T5: FromContext<'ctx, Context = C>,
-// {
-//     fn call(mut self, mut context: &'ctx mut C) -> R {
-//         (self)(
-//             T1::from_context(&mut context),
-//             T2::from_context(&mut context),
-//             T3::from_context(&mut context),
-//             T4::from_context(&mut context),
-//             T5::from_context(&mut context),
-//         )
-//     }
-// }
+impl<'ctx, C: 'ctx, T1, T2, T3, T4, T5, F, R> Handler<'ctx, C, (T1, T2, T3, T4, T5), R> for F
+where
+    F: FnMut(T1, T2, T3, T4, T5) -> R,
+    T1: FromContext<'ctx, Context = C>,
+    T2: FromContext<'ctx, Context = C>,
+    T3: FromContext<'ctx, Context = C>,
+    T4: FromContext<'ctx, Context = C>,
+    T5: FromContext<'ctx, Context = C>,
+{
+    fn call(mut self, context: &'ctx C) -> R {
+        (self)(
+            T1::from_context(context),
+            T2::from_context(context),
+            T3::from_context(context),
+            T4::from_context(context),
+            T5::from_context(context),
+        )
+    }
+}
 
 // impl<'ctx, C: 'ctx, T1, T2, T3, T4, T5, T6, F, R> Handler<'ctx, C, (T1, T2, T3, T4, T5, T6), R>
 //     for F

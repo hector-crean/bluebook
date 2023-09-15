@@ -2,7 +2,8 @@ use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use bluebook_core::{
     buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange},
-    command::EditCommand,
+    command::Transaction,
+    editor::TextEditorContext,
     movement::{Direction, Movement},
     span::Span,
     text_buffer::TextBuffer,
@@ -28,39 +29,38 @@ pub enum TextEditorError {
     TextBufferCursorError(#[from] bluebook_core::text_buffer_cursor::TextBufferCursorError),
 }
 
-pub struct TextEditor<'buffer, Buffer>
+pub struct TextEditor<'ctx, Buffer>
 where
     Buffer: TextBuffer,
 {
+    ctx: TextEditorContext<'ctx, Buffer>,
     id: Id,
-    text_buffer: &'buffer mut Buffer,
-    cursor_range: CursorRange,
     margin: Vec2,
     align: Align2,
 }
 
-impl<'buffer, Buffer> TextEditor<'buffer, Buffer>
+impl<'ctx, Buffer> TextEditor<'ctx, Buffer>
 where
     Buffer: TextBuffer,
 {
     pub fn new(
         id: Id,
-        text_buffer: &'buffer mut Buffer,
-        cursor_range: CursorRange,
+        text_buffer: &'ctx mut Buffer,
+        cursor_range: &'ctx mut CursorRange,
         margin: Vec2,
         align: Align2,
     ) -> Self {
+        let ctx = TextEditorContext::new(text_buffer, cursor_range);
         Self {
+            ctx,
             id,
-            text_buffer,
-            cursor_range,
             margin,
             align,
         }
     }
 
     fn layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
-        let buffer = self.text_buffer.take();
+        let buffer = self.ctx.text_buffer.take();
 
         let mut job = LayoutJob {
             text: buffer.into(),
@@ -72,7 +72,7 @@ where
             ..Default::default()
         };
 
-        for span in self.text_buffer.span_iter() {
+        for span in self.ctx.text_buffer.span_iter() {
             let Span { insert, attributes } = span.into();
 
             let mut bldr = TextFormatBuilder::new();
@@ -133,92 +133,80 @@ where
         text_draw_pos
     }
 
-    fn events(&mut self, ui: &Ui, galley: &Galley, id: Id) -> Result<bool, TextEditorError> {
-        let mut signal_change = false;
+    pub fn send_command(
+        &mut self,
+        event: &Event,
+        ui: &Ui,
+        galley: &Galley,
+        id: Id,
+    ) -> Result<Option<Transaction>, TextEditorError> {
+        let transaction = match event {
+            Event::Copy => None,
+            Event::CompositionEnd(c) => None,
+            Event::CompositionUpdate(c) => None,
+            Event::CompositionStart => None,
+            Event::Cut => None,
+            Event::Key {
+                key,
+                pressed,
+                repeat,
+                modifiers,
+            } => match (key, pressed) {
+                (Key::Backspace | Key::Delete, true) => None,
+                (Key::Enter, true) => None,
+                (Key::ArrowLeft, true) => None,
+                (Key::ArrowRight, true) => None,
+                _ => None,
+            },
+            Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            } => None,
+            Event::Paste(s) => None,
+            Event::PointerButton {
+                pos,
+                button,
+                pressed,
+                modifiers,
+            } => None,
+            Event::PointerGone => None,
+            Event::PointerMoved(c) => None,
+            Event::Text(s) => None,
 
-        // let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
+            _ => None,
+        };
 
-        // for event in &events {
-        //     let cursor_range: Option<CursorRange> = match event {
-        //         Event::Text(text_to_insert) => {
-        //             let byte_offset = self
-        //                 .text_buffer
-        //                 .write(self.cursor_range.anchor, text_to_insert)?;
+        Ok(transaction)
+    }
 
-        //             let cursor_range = self
-        //                 .text_buffer
-        //                 .cursor(self.cursor_range)
-        //                 .map(|cursor| cursor.head());
+    fn commands_iter(
+        &'ctx mut self,
+        ui: &'ctx Ui,
+        galley: &'ctx Galley,
+        id: Id,
+    ) -> impl Iterator<Item = Result<Option<Transaction>, TextEditorError>> + 'ctx {
+        let iter = ui
+            .input(|i| i.events.clone())
+            .into_iter()
+            .map(move |event| self.send_command(&event, ui, galley, id));
 
-        //             signal_change = true;
+        iter
+    }
 
-        //             cursor_range
-        //         }
-        //         Event::Key {
-        //             key,
-        //             pressed,
-        //             repeat,
-        //             modifiers,
-        //         } => match (key, pressed) {
-        //             (Key::Backspace | Key::Delete, true) => {
-        //                 let new_cursor_range = self.text_buffer?.cursor();
-
-        //                 move_horizontally::<Buffer>(
-        //                     &self.text_buffer,
-        //                     self.cursor_range.anchor,
-        //                     Direction::Backward,
-        //                     1,
-        //                     Movement::Move,
-        //                 );
-
-        //                 let replacement_range = self
-        //                     .text_buffer
-        //                     .replace_range(new_cursor_range.anchor..self.cursor_range.anchor, "")?;
-
-        //                 Some(CursorRange::point(replacement_range.start))
-        //             }
-        //             (Key::Enter, true) => {
-        //                 let len = self.text_buffer.len();
-        //                 let _ = self.text_buffer.write(len, "\n");
-        //                 None
-        //             }
-        //             (Key::ArrowLeft, true) => {
-        //                 let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
-        //                     &self.text_buffer,
-        //                     self.cursor_range.anchor,
-        //                     Direction::Backward,
-        //                     1,
-        //                     Movement::Move,
-        //                 );
-
-        //                 Some(cursor_range)
-        //             }
-        //             (Key::ArrowRight, true) => {
-        //                 let cursor_range = self.cursor_range.move_horizontally::<Buffer>(
-        //                     &self.text_buffer,
-        //                     self.cursor_range.anchor,
-        //                     Direction::Forward,
-        //                     1,
-        //                     Movement::Move,
-        //                 );
-
-        //                 Some(cursor_range)
-        //             }
-        //             _ => None,
-        //         },
-
-        //         _ => None,
-        //     };
-
-        //     match cursor_range {
-        //         Some(cursor_range) => {
-        //             *self.cursor_range = cursor_range;
-        //         }
-        //         None => {}
-        //     }
-        //}
-
-        Ok(signal_change)
+    fn consume_transaction(
+        self,
+        transaction: impl Iterator<Item = Result<Option<Transaction>, TextEditorError>> + 'ctx,
+    ) -> Result<(), TextEditorError> {
+        for txtn in transaction.into_iter() {
+            match txtn {
+                Ok(Some(txt)) => {
+                    self.ctx.consume_transaction::<Buffer>(txt);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     pub fn paint_cursor(
@@ -246,7 +234,7 @@ where
     }
 }
 
-impl<'buffer, Buffer: TextBuffer> egui::Widget for TextEditor<'buffer, Buffer> {
+impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<'ctx, Buffer> {
     fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
         let font_id = FontSelection::default().resolve(ui.style());
 
@@ -314,6 +302,6 @@ impl TextEditorState {
     }
 }
 
-impl<'buffer, Buffer: TextBuffer> egui::WidgetWithState for TextEditor<'buffer, Buffer> {
+impl<'ctx, Buffer: TextBuffer> egui::WidgetWithState for TextEditor<'ctx, Buffer> {
     type State = TextEditorState;
 }

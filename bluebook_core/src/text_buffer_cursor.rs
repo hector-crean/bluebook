@@ -1,4 +1,7 @@
-use crate::movement::{Direction, Movement};
+use crate::{
+    buffer::peritext_buffer::cursor_impl::CursorRange,
+    movement::{Direction, Movement},
+};
 
 /// A cursor with convenience functions for moving through a TextBuffer.
 ///
@@ -25,6 +28,8 @@ pub trait TextBufferCursor<'cursor> {
     fn anchor(&self) -> usize;
 
     fn head(&self) -> usize;
+
+    fn range(&self) -> CursorRange;
 
     /// Get the next grapheme offset from the given offset, if it exists.
     fn prev_grapheme_offset(&self) -> Option<usize>;
