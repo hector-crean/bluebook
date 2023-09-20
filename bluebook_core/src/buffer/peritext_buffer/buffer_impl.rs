@@ -37,7 +37,10 @@ impl TextBuffer for Peritext {
     type SpanItem = rich_text::Span;
     type SpanIter<'spans> = rich_text::iter::Iter<'spans> where Self: 'spans;
 
-    fn cursor(&self, cursor_range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError> {
+    fn cursor(
+        &mut self,
+        cursor_range: CursorRange,
+    ) -> Result<Self::Cursor<'_>, TextBufferCursorError> {
         let new_cursor = PeritextCursor {
             buffer: self.inner.to_string().into(),
             cursor_range,
@@ -70,11 +73,27 @@ impl TextBuffer for Peritext {
         Ok(offset + s.len())
     }
 
-    fn drain<R>(&mut self, _range: R) -> Result<&str, TextBufferError>
+    fn drain<R>(&mut self, range: R) -> Result<Cow<str>, TextBufferError>
     where
         R: RangeBounds<usize>,
     {
-        todo!()
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(&start) => start,
+            std::ops::Bound::Excluded(&start) => start + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(&end) => end + 1,
+            std::ops::Bound::Excluded(&end) => end,
+            std::ops::Bound::Unbounded => self.inner.len(), // Assuming inner is a collection with a len() method
+        };
+
+        self.inner.delete(start..end);
+
+        let slice = self.slice(start..end);
+
+        slice
     }
 
     fn replace_range<R>(
@@ -113,10 +132,10 @@ impl TextBuffer for Peritext {
         self.inner.to_string().into()
     }
 
-    fn slice(&self, range: Range<usize>) -> Option<Cow<str>> {
+    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, TextBufferError> {
         let str = self.inner.slice_str(range, IndexType::Utf16);
 
-        Some(str.into())
+        Ok(str.into())
     }
 
     fn len(&self) -> usize {

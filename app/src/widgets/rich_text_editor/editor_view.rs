@@ -29,20 +29,26 @@ pub enum TextEditorError {
     TextBufferCursorError(#[from] bluebook_core::text_buffer_cursor::TextBufferCursorError),
 }
 
-pub struct TextEditor<'ctx, Buffer>
+pub fn editor_ui<'ctx, Buffer: TextBuffer + 'ctx>(
+    text_edtitor: &'ctx mut TextEditor<Buffer>,
+) -> impl egui::Widget + 'ctx {
+    move |ui: &mut egui::Ui| text_edtitor.editor_ui(ui)
+}
+
+pub struct TextEditor<Buffer>
 where
     Buffer: TextBuffer,
 {
-    ctx: TextEditorContext<'ctx, Buffer>,
+    ctx: TextEditorContext<Buffer>,
     id: Id,
     margin: Vec2,
     align: Align2,
 }
 
 pub fn interpret_event<'ctx, Buffer: TextBuffer>(
-    ctx: TextEditorContext<'ctx, Buffer>,
+    ctx: &'ctx TextEditorContext<Buffer>,
     event: &Event,
-) -> Result<Option<Transaction>, TextEditorError> {
+) -> Option<Transaction> {
     let transaction = match event {
         Event::Copy => None,
         Event::CompositionEnd(c) => None,
@@ -55,10 +61,11 @@ pub fn interpret_event<'ctx, Buffer: TextBuffer>(
             repeat,
             modifiers,
         } => match (key, pressed) {
-            (Key::Backspace | Key::Delete, true) => None,
+            (Key::Backspace, true) => Some(Transaction::DeleteBackward),
             (Key::Enter, true) => None,
-            (Key::ArrowLeft, true) => None,
-            (Key::ArrowRight, true) => None,
+            (Key::ArrowLeft, true) => Some(Transaction::MoveCursorLeft { grapheme_count: 1 }),
+            (Key::ArrowRight, true) => Some(Transaction::MoveCursorRight { grapheme_count: 1 }),
+
             _ => None,
         },
         Event::MouseWheel {
@@ -75,32 +82,127 @@ pub fn interpret_event<'ctx, Buffer: TextBuffer>(
         } => None,
         Event::PointerGone => None,
         Event::PointerMoved(c) => None,
-        Event::Text(s) => None,
+        Event::Text(s) => Some(Transaction::InsertAtCursorHead { value: s.into() }),
 
         _ => None,
     };
 
-    Ok(transaction)
+    transaction
 }
 
-impl<'ctx, Buffer> TextEditor<'ctx, Buffer>
+impl<'ctx, Buffer> TextEditor<Buffer>
 where
     Buffer: TextBuffer,
 {
     pub fn new(
         id: Id,
-        text_buffer: &'ctx mut Buffer,
-        cursor_range: &'ctx mut CursorRange,
+        text_buffer: Buffer,
+        cursor_range: CursorRange,
         margin: Vec2,
         align: Align2,
     ) -> Self {
-        let mut ctx = TextEditorContext::new(text_buffer, cursor_range);
+        let ctx = TextEditorContext::new(text_buffer, cursor_range);
         Self {
             ctx,
             id,
             margin,
             align,
         }
+    }
+
+    fn editor_ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
+        let font_id = FontSelection::default().resolve(ui.style());
+
+        let galley = self.layouter(ui, ui.available_width());
+
+        let desired_size = self.size(ui, galley.size(), &font_id);
+
+        let (auto_id, rect) = ui.allocate_space(desired_size);
+
+        let id = ui.make_persistent_id(self.id);
+
+        let sense = Sense::click_and_drag();
+
+        let mut response = ui.interact(rect, auto_id, sense);
+
+        let painter = ui.painter_at(rect.expand(1.0)); // expand to avoid clipping cursor
+
+        let text_draw_pos = self.draw_position(galley.size(), response.rect);
+
+        painter.galley(text_draw_pos, galley);
+
+        let events = ui.input(|i| i.events.clone());
+
+        // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
+
+        for event in &events {
+            let transaction = interpret_event(&self.ctx, event);
+
+            match transaction {
+                Some(t) => {
+                    let success = &self.ctx.consume_transaction::<Buffer>(t);
+                }
+                _ => {}
+            }
+        }
+
+        response
+    }
+
+    // pub fn toggle(self, on: &'ctx mut bool) -> impl egui::Widget + 'ctx {
+    //     move |ui: &mut egui::Ui| self.text_editor_ui(ui, on)
+    // }
+
+    pub fn toggle_ui(&mut self, ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+        //Widget code can be broken up in four steps:
+        //  1. Decide a size for the widget
+        //  2. Allocate space for it
+        //  3. Handle interactions with the widget (if any)
+        //  4. Paint the widget
+
+        // 1. Deciding widget size:
+        // You can query the `ui` how much space is available
+        let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
+
+        // 2. Allocating space:
+        // This is where we get a region of the screen assigned.
+        // We also tell the Ui to sense clicks in the allocated region.
+        let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+
+        // 3. Interact: Time to check for clicks!
+        if response.clicked() {
+            *on = !*on;
+            response.mark_changed(); // report back that the value changed
+        }
+        // Attach some meta-data to the response which can be used by screen readers:
+        response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
+
+        // 4. Paint!
+        // Make sure we need to paint:
+        if ui.is_rect_visible(rect) {
+            // Let's ask for a simple animation from egui.
+            // egui keeps track of changes in the boolean associated with the id and
+            // returns an animated value in the 0-1 range for how much "on" we are.
+            let how_on = ui.ctx().animate_bool(response.id, *on);
+            // We will follow the current style by asking
+            // "how should something that is being interacted with be painted?".
+            // This will, for instance, give us different colors when the widget is hovered or clicked.
+            let visuals = ui.style().interact_selectable(&response, *on);
+            // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
+            let rect = rect.expand(visuals.expansion);
+            let radius = 0.5 * rect.height();
+            ui.painter()
+                .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
+            // Paint the circle, animating it from left to right with `how_on`:
+            let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
+            let center = egui::pos2(circle_x, rect.center().y);
+            ui.painter()
+                .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+        }
+
+        // All done! Return the interaction response so the user can check what happened
+        // (hovered, clicked, ...) and maybe show a tooltip:
+        response
     }
 
     fn layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
@@ -177,21 +279,6 @@ where
         text_draw_pos
     }
 
-    // fn consume_transaction(
-    //     self,
-    //     transaction: impl Iterator<Item = Result<Option<Transaction>, TextEditorError>> + 'ctx,
-    // ) -> Result<(), TextEditorError> {
-    //     for txtn in transaction.into_iter() {
-    //         match txtn {
-    //             Ok(Some(txt)) => {
-    //                 self.ctx.consume_transaction::<Buffer>(txt);
-    //             }
-    //             _ => {}
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
     pub fn paint_cursor(
         &self,
         ui: &Ui,
@@ -217,8 +304,8 @@ where
     }
 }
 
-impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<'ctx, Buffer> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<Buffer> {
+    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
         let font_id = FontSelection::default().resolve(ui.style());
 
         let galley = self.layouter(ui, ui.available_width());
@@ -239,10 +326,20 @@ impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<'ctx, Buffer> {
 
         painter.galley(text_draw_pos, galley);
 
-        let events = ui
-            .input(|i| i.events.clone())
-            .iter()
-            .map(|e| interpret_event(self.ctx, e));
+        let events = ui.input(|i| i.events.clone());
+
+        // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
+
+        for event in &events {
+            let transaction = interpret_event(&self.ctx, event);
+
+            match transaction {
+                Some(t) => {
+                    let success = &self.ctx.consume_transaction::<Buffer>(t);
+                }
+                _ => {}
+            }
+        }
 
         response
     }
@@ -267,6 +364,6 @@ impl TextEditorState {
     }
 }
 
-impl<'ctx, Buffer: TextBuffer> egui::WidgetWithState for TextEditor<'ctx, Buffer> {
+impl<'ctx, Buffer: TextBuffer> egui::WidgetWithState for TextEditor<Buffer> {
     type State = TextEditorState;
 }

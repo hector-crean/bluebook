@@ -13,7 +13,7 @@ mod msg {
 
     use super::*;
 
-    pub fn edit<'ctx, B: TextBuffer>(buffer: &B) -> Result<Transaction, TextEditorError> {
+    pub fn edit<'ctx, B: TextBuffer>(mut buffer: B) -> Result<Transaction, TextEditorError> {
         // let offset = buffer.write(0, "hello, my name is Hector")?;
 
         let _cursor = buffer.cursor(CursorRange { anchor: 0, head: 0 })?;
@@ -36,24 +36,21 @@ pub enum CursorMode {
     // Insert(Selection),
 }
 
-pub struct TextEditorContext<'ctx, Buffer>
+pub struct TextEditorContext<Buffer>
 where
     Buffer: TextBuffer,
 {
-    pub text_buffer: &'ctx mut Buffer,
-    pub cursor_range: &'ctx mut CursorRange,
+    pub text_buffer: Buffer,
+    pub cursor_range: CursorRange,
     // cursor_mode: CursorMode,
     // motion_mode: MotionMode,
 }
 
-impl<'ctx, Buffer> TextEditorContext<'ctx, Buffer>
+impl<'ctx, Buffer> TextEditorContext<Buffer>
 where
     Buffer: TextBuffer,
 {
-    pub fn new(
-        text_buffer: impl Into<&'ctx mut Buffer>,
-        cursor_range: impl Into<&'ctx mut CursorRange>,
-    ) -> Self {
+    pub fn new(text_buffer: Buffer, cursor_range: CursorRange) -> Self {
         Self {
             text_buffer: text_buffer.into(),
             cursor_range: cursor_range.into(),
@@ -61,51 +58,73 @@ where
     }
 
     pub fn consume_transaction<B: TextBuffer>(
-        self,
+        &mut self,
         transaction: Transaction,
     ) -> Result<bool, TextEditorError> {
-        let Self {
-            text_buffer,
-            cursor_range,
-        } = self;
         match transaction {
-            Transaction::DeleteSelection => match cursor_range.is_empty() {
+            Transaction::DeleteSelection => match self.cursor_range.is_empty() {
                 true => Ok(false),
                 false => {
-                    let CursorRange { anchor, head } = *cursor_range;
-                    let _ = text_buffer.drain(anchor..head)?;
+                    let CursorRange { anchor, head } = self.cursor_range;
+                    let _ = self.text_buffer.drain(anchor..head)?;
+                    self.cursor_range.set_point(anchor);
+
+                    Ok(true)
+                }
+            },
+            Transaction::DeleteBackward => match self.cursor_range.is_empty() {
+                true => {
+                    let CursorRange { anchor, head } = self.cursor_range;
+
+                    let cursor = self.text_buffer.cursor(self.cursor_range)?;
+
+                    let offset = cursor.nth_prev_grapheme_boundary(1)?;
+
+                    drop(cursor);
+
+                    let _ = self.text_buffer.drain(offset..head)?;
+
+                    self.cursor_range.set_point(offset);
+
+                    Ok(true)
+                }
+                false => {
+                    // let CursorRange { anchor, head } = self.cursor_range;
+                    // let _ = self.text_buffer.drain(anchor..head)?;
                     Ok(true)
                 }
             },
             Transaction::InsertAtCursorHead { value: s } | Transaction::Paste { clipboard: s } => {
-                let CursorRange { head, .. } = *cursor_range;
-                text_buffer.write(head, &s)?;
+                let CursorRange { head, .. } = self.cursor_range;
+                let byte_idx = self.text_buffer.write(head, &s)?;
+                self.cursor_range.set_point(byte_idx);
+                println!("{:?}", byte_idx);
                 Ok(true)
             }
             Transaction::MoveCursorHeadTo { offset } => {
-                let r = CursorRange::new(cursor_range.anchor, offset);
+                let r = CursorRange::new(self.cursor_range.anchor, offset);
 
-                let cursor = text_buffer.cursor(r)?;
+                let cursor = self.text_buffer.cursor(r)?;
 
-                cursor_range.set(cursor.range());
+                self.cursor_range.set(cursor.range());
 
                 Ok(true)
             }
             Transaction::MoveCursorLeft { grapheme_count } => {
-                let cursor = text_buffer.cursor(*cursor_range)?;
+                let cursor = self.text_buffer.cursor(self.cursor_range)?;
 
                 let offset = cursor.nth_prev_grapheme_boundary(grapheme_count)?;
 
-                cursor_range.set_head(offset);
+                self.cursor_range.set_point(offset);
 
                 Ok(true)
             }
             Transaction::MoveCursorRight { grapheme_count } => {
-                let cursor = text_buffer.cursor(*cursor_range)?;
+                let cursor = self.text_buffer.cursor(self.cursor_range)?;
 
                 let offset = cursor.nth_next_grapheme_boundary(grapheme_count)?;
 
-                cursor_range.set_head(offset);
+                self.cursor_range.set_point(offset);
 
                 Ok(true)
             }
@@ -125,9 +144,9 @@ where
         handler.call(self)
     }
 
-    fn commands(&'ctx self) -> Result<Transaction, TextEditorError> {
-        self.send(msg::edit)
-    }
+    // fn commands(&'ctx self) -> Result<Transaction, TextEditorError> {
+    //     self.send(msg::edit)
+    // }
 
     fn event_reader(self, edit_command: Transaction) -> Result<bool, TextEditorError> {
         use Transaction::*;
@@ -138,12 +157,12 @@ where
     }
 }
 
-impl<'ctx, Buffer: TextBuffer> FromContext<'ctx> for &'ctx Buffer {
-    type Context = TextEditorContext<'ctx, Buffer>;
-    fn from_context(context: &'ctx Self::Context) -> Self {
-        context.text_buffer
-    }
-}
+// impl<'ctx, Buffer: TextBuffer + 'ctx> FromContext<'ctx> for Buffer {
+//     type Context = TextEditorContext<Buffer>;
+//     fn from_context(context: &'ctx Self::Context) -> Self {
+//         context.text_buffer
+//     }
+// }
 
 // impl<'ctx, Buffer: TextBuffer> FromContext<'ctx> for &'ctx CursorRange {
 //     type Context = TextEditorContext<'ctx, Buffer>;
@@ -165,7 +184,7 @@ mod tests {
         let mut buf = Peritext::new(1);
         let mut cursor_range = CursorRange::default();
 
-        let _ctx = TextEditorContext::<Peritext>::new(&mut buf, &mut cursor_range);
+        let _ctx = TextEditorContext::<Peritext>::new(buf, cursor_range);
 
         // let handler = |cursor_range: CursorRange| -> TextEditorContext<Peritext> { todo!() };
     }

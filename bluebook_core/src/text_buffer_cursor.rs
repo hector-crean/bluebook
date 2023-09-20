@@ -1,6 +1,4 @@
-use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange,
-};
+use crate::buffer::peritext_buffer::cursor_impl::CursorRange;
 
 /// A cursor with convenience functions for moving through a TextBuffer.
 ///
@@ -22,6 +20,8 @@ pub trait TextBufferCursor<'cursor> {
     fn set_anchor(self, byte_offset: usize) -> Self;
 
     fn set_head(self, byte_offset: usize) -> Self;
+
+    fn set_point(self, byte_offset: usize) -> Self;
 
     // /// Get cursor position.
     fn anchor(&self) -> usize;

@@ -1,10 +1,7 @@
 use std::borrow::Cow;
 
 use super::grapheme::Graphemes;
-use crate::{
-    text_buffer_cursor::{TextBufferCursor, TextBufferCursorError},
-};
-
+use crate::text_buffer_cursor::{TextBufferCursor, TextBufferCursorError};
 
 use crate::movement::Direction;
 
@@ -85,6 +82,13 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
     }
     fn set_head(mut self, byte_offset: usize) -> Self {
         self.cursor_range.head = byte_offset;
+        self
+    }
+
+    fn set_point(mut self, byte_offset: usize) -> Self {
+        self.cursor_range.head = byte_offset;
+        self.cursor_range.anchor = byte_offset;
+
         self
     }
 
@@ -184,6 +188,12 @@ impl CursorRange {
         self
     }
 
+    pub fn set_point(&mut self, offset: usize) -> &Self {
+        self.anchor = offset;
+        self.head = offset;
+
+        self
+    }
     /// Start of the range.
     #[inline]
     #[must_use]

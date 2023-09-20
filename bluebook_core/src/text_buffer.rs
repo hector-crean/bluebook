@@ -62,12 +62,12 @@ pub trait TextBuffer {
     /// Create a cursor with a reference to the text and a offset position.
     ///
     /// Returns None if the position isn't a codepoint boundary.
-    fn cursor(&self, range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError>;
+    fn cursor(&mut self, range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError>;
     // ^ should I specify cursors?
 
     fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferError>;
 
-    fn drain<R>(&mut self, range: R) -> Result<&str, TextBufferError>
+    fn drain<R>(&mut self, range: R) -> Result<Cow<str>, TextBufferError>
     where
         R: RangeBounds<usize>;
 
@@ -84,7 +84,7 @@ pub trait TextBuffer {
     fn take(&self) -> Cow<str>;
 
     /// Get slice of text at range.
-    fn slice(&self, range: Range<usize>) -> Option<Cow<str>>;
+    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, TextBufferError>;
 
     /// Get length of text (in bytes).
     fn len(&self) -> usize;
