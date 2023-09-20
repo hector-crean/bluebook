@@ -2,11 +2,9 @@ use std::borrow::Cow;
 
 use super::grapheme::Graphemes;
 use crate::{
-    movement::Movement,
-    text_buffer::TextBuffer,
     text_buffer_cursor::{TextBufferCursor, TextBufferCursorError},
 };
-use peritext::rich_text::cursor::Cursor;
+
 
 use crate::movement::Direction;
 
@@ -95,13 +93,13 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
     }
 
     fn is_grapheme_boundary(&self) -> bool {
-        let mut graphemes = Graphemes::new(&self.buffer, false);
+        let graphemes = Graphemes::new(&self.buffer, false);
 
         graphemes.is_grapheme_boundary(self.cursor_range.head)
     }
 
     fn next_grapheme_offset(&self) -> Option<usize> {
-        let CursorRange { head, anchor } = self.cursor_range;
+        let CursorRange { head, anchor: _ } = self.cursor_range;
 
         let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
 
@@ -109,7 +107,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
     }
 
     fn prev_grapheme_offset(&self) -> Option<usize> {
-        let CursorRange { head, anchor } = self.cursor_range;
+        let CursorRange { head, anchor: _ } = self.cursor_range;
 
         let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
 
@@ -117,7 +115,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
     }
 
     fn nth_next_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
-        let CursorRange { head, anchor } = self.cursor_range;
+        let CursorRange { head, anchor: _ } = self.cursor_range;
 
         let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
 
@@ -127,7 +125,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
             .ok_or(TextBufferCursorError::NextGraphemeOffsetError)
     }
     fn nth_prev_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
-        let CursorRange { head, anchor } = self.cursor_range;
+        let CursorRange { head, anchor: _ } = self.cursor_range;
 
         let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
 

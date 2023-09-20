@@ -39,6 +39,50 @@ where
     align: Align2,
 }
 
+pub fn interpret_event<'ctx, Buffer: TextBuffer>(
+    ctx: TextEditorContext<'ctx, Buffer>,
+    event: &Event,
+) -> Result<Option<Transaction>, TextEditorError> {
+    let transaction = match event {
+        Event::Copy => None,
+        Event::CompositionEnd(c) => None,
+        Event::CompositionUpdate(c) => None,
+        Event::CompositionStart => None,
+        Event::Cut => None,
+        Event::Key {
+            key,
+            pressed,
+            repeat,
+            modifiers,
+        } => match (key, pressed) {
+            (Key::Backspace | Key::Delete, true) => None,
+            (Key::Enter, true) => None,
+            (Key::ArrowLeft, true) => None,
+            (Key::ArrowRight, true) => None,
+            _ => None,
+        },
+        Event::MouseWheel {
+            unit,
+            delta,
+            modifiers,
+        } => None,
+        Event::Paste(s) => None,
+        Event::PointerButton {
+            pos,
+            button,
+            pressed,
+            modifiers,
+        } => None,
+        Event::PointerGone => None,
+        Event::PointerMoved(c) => None,
+        Event::Text(s) => None,
+
+        _ => None,
+    };
+
+    Ok(transaction)
+}
+
 impl<'ctx, Buffer> TextEditor<'ctx, Buffer>
 where
     Buffer: TextBuffer,
@@ -50,7 +94,7 @@ where
         margin: Vec2,
         align: Align2,
     ) -> Self {
-        let ctx = TextEditorContext::new(text_buffer, cursor_range);
+        let mut ctx = TextEditorContext::new(text_buffer, cursor_range);
         Self {
             ctx,
             id,
@@ -133,81 +177,20 @@ where
         text_draw_pos
     }
 
-    pub fn send_command(
-        &mut self,
-        event: &Event,
-        ui: &Ui,
-        galley: &Galley,
-        id: Id,
-    ) -> Result<Option<Transaction>, TextEditorError> {
-        let transaction = match event {
-            Event::Copy => None,
-            Event::CompositionEnd(c) => None,
-            Event::CompositionUpdate(c) => None,
-            Event::CompositionStart => None,
-            Event::Cut => None,
-            Event::Key {
-                key,
-                pressed,
-                repeat,
-                modifiers,
-            } => match (key, pressed) {
-                (Key::Backspace | Key::Delete, true) => None,
-                (Key::Enter, true) => None,
-                (Key::ArrowLeft, true) => None,
-                (Key::ArrowRight, true) => None,
-                _ => None,
-            },
-            Event::MouseWheel {
-                unit,
-                delta,
-                modifiers,
-            } => None,
-            Event::Paste(s) => None,
-            Event::PointerButton {
-                pos,
-                button,
-                pressed,
-                modifiers,
-            } => None,
-            Event::PointerGone => None,
-            Event::PointerMoved(c) => None,
-            Event::Text(s) => None,
-
-            _ => None,
-        };
-
-        Ok(transaction)
-    }
-
-    fn commands_iter(
-        &'ctx mut self,
-        ui: &'ctx Ui,
-        galley: &'ctx Galley,
-        id: Id,
-    ) -> impl Iterator<Item = Result<Option<Transaction>, TextEditorError>> + 'ctx {
-        let iter = ui
-            .input(|i| i.events.clone())
-            .into_iter()
-            .map(move |event| self.send_command(&event, ui, galley, id));
-
-        iter
-    }
-
-    fn consume_transaction(
-        self,
-        transaction: impl Iterator<Item = Result<Option<Transaction>, TextEditorError>> + 'ctx,
-    ) -> Result<(), TextEditorError> {
-        for txtn in transaction.into_iter() {
-            match txtn {
-                Ok(Some(txt)) => {
-                    self.ctx.consume_transaction::<Buffer>(txt);
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
+    // fn consume_transaction(
+    //     self,
+    //     transaction: impl Iterator<Item = Result<Option<Transaction>, TextEditorError>> + 'ctx,
+    // ) -> Result<(), TextEditorError> {
+    //     for txtn in transaction.into_iter() {
+    //         match txtn {
+    //             Ok(Some(txt)) => {
+    //                 self.ctx.consume_transaction::<Buffer>(txt);
+    //             }
+    //             _ => {}
+    //         }
+    //     }
+    //     Ok(())
+    // }
 
     pub fn paint_cursor(
         &self,
@@ -235,7 +218,7 @@ where
 }
 
 impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<'ctx, Buffer> {
-    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let font_id = FontSelection::default().resolve(ui.style());
 
         let galley = self.layouter(ui, ui.available_width());
@@ -246,11 +229,6 @@ impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<'ctx, Buffer> {
 
         let id = ui.make_persistent_id(self.id);
 
-        let signal = match self.events(ui, &galley, id) {
-            Ok(signal) => signal,
-            Err(_) => false,
-        };
-
         let sense = Sense::click_and_drag();
 
         let mut response = ui.interact(rect, auto_id, sense);
@@ -259,25 +237,12 @@ impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<'ctx, Buffer> {
 
         let text_draw_pos = self.draw_position(galley.size(), response.rect);
 
-        if signal {
-            response.mark_changed()
-        }
-
-        // match &state.cursor_range {
-        //     Some(cursor_range) => {
-        //         self.paint_cursor(
-        //             ui,
-        //             &font_id,
-        //             &painter,
-        //             response.rect.min,
-        //             &galley,
-        //             &cursor_range.primary,
-        //         );
-        //     }
-        //     None => {}
-        // }
-
         painter.galley(text_draw_pos, galley);
+
+        let events = ui
+            .input(|i| i.events.clone())
+            .iter()
+            .map(|e| interpret_event(self.ctx, e));
 
         response
     }

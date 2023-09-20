@@ -1,12 +1,10 @@
-use std::{any::Any, marker::PhantomData};
-
 use crate::text_buffer_cursor::TextBufferCursor;
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange,
     command::Transaction,
     context::{FromContext, Handler},
     error::TextEditorError,
-    text_buffer::{TextBuffer, TextBufferError},
+    text_buffer::TextBuffer,
 };
 use serde::{Deserialize, Serialize};
 mod msg {
@@ -18,7 +16,7 @@ mod msg {
     pub fn edit<'ctx, B: TextBuffer>(buffer: &B) -> Result<Transaction, TextEditorError> {
         // let offset = buffer.write(0, "hello, my name is Hector")?;
 
-        let cursor = buffer.cursor(CursorRange { anchor: 0, head: 0 })?;
+        let _cursor = buffer.cursor(CursorRange { anchor: 0, head: 0 })?;
 
         Ok(Transaction::Append)
     }
@@ -131,7 +129,7 @@ where
         self.send(msg::edit)
     }
 
-    fn event_reader(mut self, edit_command: Transaction) -> Result<bool, TextEditorError> {
+    fn event_reader(self, edit_command: Transaction) -> Result<bool, TextEditorError> {
         use Transaction::*;
         match edit_command {
             MoveLineDown => Ok(true),
@@ -143,7 +141,7 @@ where
 impl<'ctx, Buffer: TextBuffer> FromContext<'ctx> for &'ctx Buffer {
     type Context = TextEditorContext<'ctx, Buffer>;
     fn from_context(context: &'ctx Self::Context) -> Self {
-        &context.text_buffer
+        context.text_buffer
     }
 }
 
@@ -158,20 +156,16 @@ impl<'ctx, Buffer: TextBuffer> FromContext<'ctx> for &'ctx Buffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        buffer::peritext_buffer::buffer_impl::Peritext,
-        error::TextEditorError,
-        text_buffer::{self, TextBufferError},
-    };
+    use crate::buffer::peritext_buffer::buffer_impl::Peritext;
 
     use super::*;
 
     #[test]
-    fn magic_params_editor() -> () {
+    fn magic_params_editor() {
         let mut buf = Peritext::new(1);
         let mut cursor_range = CursorRange::default();
 
-        let ctx = TextEditorContext::<Peritext>::new(&mut buf, &mut cursor_range);
+        let _ctx = TextEditorContext::<Peritext>::new(&mut buf, &mut cursor_range);
 
         // let handler = |cursor_range: CursorRange| -> TextEditorContext<Peritext> { todo!() };
     }

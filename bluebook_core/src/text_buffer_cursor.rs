@@ -1,6 +1,5 @@
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange,
-    movement::{Direction, Movement},
 };
 
 /// A cursor with convenience functions for moving through a TextBuffer.

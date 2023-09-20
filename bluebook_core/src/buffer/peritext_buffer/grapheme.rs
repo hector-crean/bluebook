@@ -30,7 +30,7 @@ impl<'a> Graphemes<'a> {
         loop {
             match self.gc.is_boundary(self.slice, byte_offset) {
                 Ok(n) => return n,
-                Err(GraphemeIncomplete::PreContext(n)) => {
+                Err(GraphemeIncomplete::PreContext(_n)) => {
                     // let (ctx_chunk, ctx_byte_start, _, _) = self.slice.chunk_at_byte(n - 1);
                     // self.gc.provide_context(ctx_chunk, ctx_byte_start);
                 }
@@ -54,10 +54,7 @@ impl<'a> Iterator for Graphemes<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let next_idx = self.gc.next_boundary(self.slice, 0).unwrap();
 
-        match next_idx {
-            Some(next_idx) => Some(GraphemeIterItem::new(next_idx)),
-            None => None,
-        }
+        next_idx.map(GraphemeIterItem::new)
     }
 }
 
@@ -65,15 +62,12 @@ impl<'a> DoubleEndedIterator for Graphemes<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let prev_idx = self.gc.prev_boundary(self.slice, 0).unwrap();
 
-        match prev_idx {
-            Some(prev_idx) => Some(GraphemeIterItem::new(prev_idx)),
-            None => None,
-        }
+        prev_idx.map(GraphemeIterItem::new)
     }
 }
 
-pub fn nth_next_grapheme_boundary<'a>(
-    slice: &'a str,
+pub fn nth_next_grapheme_boundary(
+    slice: &str,
     byte_offset: usize,
     n: usize,
 ) -> Option<GraphemeIterItem> {
@@ -82,8 +76,8 @@ pub fn nth_next_grapheme_boundary<'a>(
     graphemes.nth(n)
 }
 
-pub fn nth_prev_grapheme_boundary<'a>(
-    slice: &'a str,
+pub fn nth_prev_grapheme_boundary(
+    slice: &str,
     byte_offset: usize,
     n: usize,
 ) -> Option<GraphemeIterItem> {
@@ -164,7 +158,7 @@ mod tests {
 
     #[test]
     fn nth_grapheme() {
-        let mut graphemes = Graphemes::new(&TEXT, false).set_cursor_offet(TEXT.len());
+        let mut graphemes = Graphemes::new(TEXT, false).set_cursor_offet(TEXT.len());
 
         assert_eq!(graphemes.nth_back(1).unwrap().byte_offset, TEXT.len() - 2);
     }

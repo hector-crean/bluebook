@@ -1,13 +1,9 @@
-use std::ops::{Range, RangeFrom};
 
-use strum::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
+
+use strum::{Display, EnumMessage, IntoStaticStr};
 
 use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange,
-    error::TextEditorError,
     span::Annotation,
-    text_buffer::{TextBuffer, TextBufferError},
-    text_buffer_cursor::TextBufferCursor,
 };
 // use strum_macros::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
 

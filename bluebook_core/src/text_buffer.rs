@@ -65,7 +65,7 @@ pub trait TextBuffer {
     fn cursor(&self, range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError>;
     // ^ should I specify cursors?
 
-    fn write<'a>(&mut self, offset: usize, s: &'a str) -> Result<usize, TextBufferError>;
+    fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferError>;
 
     fn drain<R>(&mut self, range: R) -> Result<&str, TextBufferError>
     where

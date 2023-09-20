@@ -64,13 +64,13 @@ impl TextBuffer for Peritext {
         rich_text::iter::Iter::new(&self.inner)
     }
 
-    fn write<'a>(&mut self, offset: usize, s: &'a str) -> Result<usize, TextBufferError> {
+    fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferError> {
         self.inner.insert(offset, s);
 
         Ok(offset + s.len())
     }
 
-    fn drain<R>(&mut self, range: R) -> Result<&str, TextBufferError>
+    fn drain<R>(&mut self, _range: R) -> Result<&str, TextBufferError>
     where
         R: RangeBounds<usize>,
     {

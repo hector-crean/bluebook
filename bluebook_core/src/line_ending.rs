@@ -1,6 +1,6 @@
-use std::ops::Range;
 
-use crate::text_buffer::{self, TextBuffer};
+
+use crate::text_buffer::{TextBuffer};
 
 #[cfg(target_os = "windows")]
 pub const NATIVE_LINE_ENDING: LineEnding = LineEnding::Crlf;
