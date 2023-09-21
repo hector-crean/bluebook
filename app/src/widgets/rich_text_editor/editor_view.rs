@@ -1,9 +1,14 @@
-use std::{collections::HashMap, ops::Range, sync::Arc};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut, Range},
+    sync::Arc,
+};
 
 use bluebook_core::{
     buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange},
     command::Transaction,
-    editor::TextEditorContext,
+    ctx::TextEditorContext,
+    editor::TextEditor,
     movement::{Direction, Movement},
     span::Span,
     text_buffer::TextBuffer,
@@ -29,24 +34,41 @@ pub enum TextEditorError {
     TextBufferCursorError(#[from] bluebook_core::text_buffer_cursor::TextBufferCursorError),
 }
 
-pub fn editor_ui<'ctx, Buffer: TextBuffer + 'ctx>(
-    text_edtitor: &'ctx mut TextEditor<Buffer>,
-) -> impl egui::Widget + 'ctx {
-    move |ui: &mut egui::Ui| text_edtitor.editor_ui(ui)
-}
-
-pub struct TextEditor<Buffer>
-where
-    Buffer: TextBuffer,
-{
-    ctx: TextEditorContext<Buffer>,
+pub struct EguiViewCtx {
     id: Id,
     margin: Vec2,
     align: Align2,
 }
+impl EguiViewCtx {
+    pub fn new(id: Id, margin: Vec2, align: Align2) -> Self {
+        Self { id, margin, align }
+    }
+}
 
-pub fn interpret_event<'ctx, Buffer: TextBuffer>(
-    ctx: &'ctx TextEditorContext<Buffer>,
+pub struct EguiTextEditor<Buf: TextBuffer>(pub TextEditor<Buf, egui::Event, EguiViewCtx>);
+
+impl<Buf: TextBuffer> Deref for EguiTextEditor<Buf> {
+    type Target = TextEditor<Buf, egui::Event, EguiViewCtx>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<Buf: TextBuffer> DerefMut for EguiTextEditor<Buf> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+pub fn editor_ui<'ctx, Buffer: TextBuffer + 'ctx>(
+    text_edtitor: &'ctx mut EguiTextEditor<Buffer>,
+) -> impl egui::Widget + 'ctx {
+    move |ui: &mut egui::Ui| text_edtitor.editor_ui(ui)
+}
+
+pub fn egui_transact_fn<'ctx, Buf: TextBuffer>(
+    ctx: &'ctx TextEditorContext<Buf>,
     event: &Event,
 ) -> Option<Transaction> {
     let transaction = match event {
@@ -90,26 +112,10 @@ pub fn interpret_event<'ctx, Buffer: TextBuffer>(
     transaction
 }
 
-impl<'ctx, Buffer> TextEditor<Buffer>
+impl<'ctx, Buffer> EguiTextEditor<Buffer>
 where
     Buffer: TextBuffer,
 {
-    pub fn new(
-        id: Id,
-        text_buffer: Buffer,
-        cursor_range: CursorRange,
-        margin: Vec2,
-        align: Align2,
-    ) -> Self {
-        let ctx = TextEditorContext::new(text_buffer, cursor_range);
-        Self {
-            ctx,
-            id,
-            margin,
-            align,
-        }
-    }
-
     fn editor_ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         let font_id = FontSelection::default().resolve(ui.style());
 
@@ -119,7 +125,7 @@ where
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
-        let id = ui.make_persistent_id(self.id);
+        let id = ui.make_persistent_id(self.view_ctx().id);
 
         let sense = Sense::click_and_drag();
 
@@ -136,11 +142,12 @@ where
         // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
 
         for event in &events {
-            let transaction = interpret_event(&self.ctx, event);
+            let edit_ctx = &(self.edit_ctx);
+            let transaction = &self.0.emit_transcation(event);
 
             match transaction {
                 Some(t) => {
-                    let success = &self.ctx.consume_transaction::<Buffer>(t);
+                    let success = self.edit_ctx().consume_transaction::<Buffer>(t.clone());
                 }
                 _ => {}
             }
@@ -206,7 +213,7 @@ where
     }
 
     fn layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
-        let buffer = self.ctx.text_buffer.take();
+        let buffer = self.0.edit_ctx.text_buffer.take();
 
         let mut job = LayoutJob {
             text: buffer.into(),
@@ -218,7 +225,7 @@ where
             ..Default::default()
         };
 
-        for span in self.ctx.text_buffer.span_iter() {
+        for span in self.0.edit_ctx.text_buffer.span_iter() {
             let Span { insert, attributes } = span.into();
 
             let mut bldr = TextFormatBuilder::new();
@@ -255,7 +262,7 @@ where
             available_width
         } else {
             ui.spacing().text_edit_width.min(available_width)
-        } - self.margin.x * 2.0;
+        } - self.0.view_ctx.margin.x * 2.0;
 
         let desired_width = galley_size.x.max(wrap_width);
 
@@ -264,13 +271,15 @@ where
         let desired_height = 4. * row_height;
 
         let desired_size = vec2(desired_width, galley_size.y.max(desired_height))
-            .at_least(Vec2::ZERO - self.margin * 2.0);
+            .at_least(Vec2::ZERO - self.0.view_ctx.margin * 2.0);
 
         desired_size
     }
 
     fn draw_position(&self, size: Vec2, frame: Rect) -> Pos2 {
         let text_draw_pos = self
+            .0
+            .view_ctx
             .align
             .align_size_within_rect(size, frame)
             .intersect(frame) // limit pos to the response rect area
@@ -304,7 +313,7 @@ where
     }
 }
 
-impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<Buffer> {
+impl<'ctx, Buffer: TextBuffer> egui::Widget for EguiTextEditor<Buffer> {
     fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
         let font_id = FontSelection::default().resolve(ui.style());
 
@@ -314,7 +323,7 @@ impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<Buffer> {
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
-        let id = ui.make_persistent_id(self.id);
+        let id = ui.make_persistent_id(self.view_ctx().id);
 
         let sense = Sense::click_and_drag();
 
@@ -331,11 +340,11 @@ impl<'ctx, Buffer: TextBuffer> egui::Widget for TextEditor<Buffer> {
         // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
 
         for event in &events {
-            let transaction = interpret_event(&self.ctx, event);
+            let transaction = self.emit_transcation(event);
 
             match transaction {
                 Some(t) => {
-                    let success = &self.ctx.consume_transaction::<Buffer>(t);
+                    let success = self.edit_ctx().consume_transaction::<Buffer>(t);
                 }
                 _ => {}
             }
@@ -364,6 +373,6 @@ impl TextEditorState {
     }
 }
 
-impl<'ctx, Buffer: TextBuffer> egui::WidgetWithState for TextEditor<Buffer> {
+impl<'ctx, Buffer: TextBuffer> egui::WidgetWithState for EguiTextEditor<Buffer> {
     type State = TextEditorState;
 }

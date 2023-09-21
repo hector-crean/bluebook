@@ -1,10 +1,16 @@
 use app::{
     easy_mark_editor::{self, EasyMarkEditor},
     formatting::Formatting,
-    widgets::rich_text_editor::editor_view::{editor_ui, TextEditor},
+    widgets::rich_text_editor::editor_view::{
+        editor_ui, egui_transact_fn, EguiTextEditor, EguiViewCtx,
+    },
 };
-use bluebook_core::buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange};
 use bluebook_core::text_buffer::TextBuffer;
+use bluebook_core::{
+    buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange},
+    ctx::TextEditorContext,
+    editor::TextEditor,
+};
 use eframe::{self, egui};
 use egui::{epaint::text::cursor::Cursor, Align2, Id, ScrollArea, Vec2, Widget};
 use peritext::Style;
@@ -13,8 +19,7 @@ use string_cache::Atom;
 
 // #[derive(serde::Deserialize, serde::Serialize)]
 struct TextEditApp {
-    editor: TextEditor<Peritext>,
-    on: bool,
+    editor: EguiTextEditor<Peritext>,
 }
 
 impl TextEditApp {
@@ -28,20 +33,22 @@ impl TextEditApp {
         let cursor_range = CursorRange::default();
 
         // println!("{:?}, {:?}", &self.cursor_range, &self.buf.take());
+        let edit_ctx = TextEditorContext::new(buf, cursor_range);
+        let view_ctx = EguiViewCtx::new(Id::new("text_editor"), Vec2::ZERO, Align2::CENTER_CENTER);
 
-        let editor = TextEditor::<Peritext>::new(
-            Id::new("text_editor"),
-            buf,
-            cursor_range,
-            Vec2::ZERO,
-            Align2::CENTER_CENTER,
+        let editor = TextEditor::<Peritext, egui::Event, EguiViewCtx>::new(
+            edit_ctx,
+            egui_transact_fn,
+            view_ctx,
         );
 
-        Self { editor, on: false }
+        Self {
+            editor: EguiTextEditor(editor),
+        }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let TextEditApp { editor, on } = self;
+        let TextEditApp { editor } = self;
 
         ScrollArea::vertical()
             .id_source("source")
