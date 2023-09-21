@@ -106,7 +106,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
     }
 
     fn next_boundary(&self) -> Option<usize> {
-        let mut graphemes = Graphemes::new(&self.buffer, false);
+        let mut graphemes = 
     }
 
     fn next_grapheme_offset(&self) -> Option<usize> {

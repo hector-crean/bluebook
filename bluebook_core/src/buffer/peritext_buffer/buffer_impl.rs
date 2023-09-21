@@ -62,6 +62,7 @@ impl TextBuffer for Peritext {
         &mut self,
         cursor_range: CursorRange,
     ) -> Result<CursorCoords, TextBufferCursorError> {
+        let cursor = self.cursor(range);
         let buf = self.inner.to_string().clone();
         let s = &buf[0..cursor_range.head];
         let line_iter = LineWithEnding::new(s);
