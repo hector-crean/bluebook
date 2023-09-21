@@ -12,7 +12,7 @@ use bluebook_core::{
     movement::{Direction, Movement},
     span::Span,
     text_buffer::TextBuffer,
-    text_buffer_cursor::TextBufferCursor,
+    text_buffer_cursor::{CursorCoords, TextBufferCursor},
 };
 use egui::{
     epaint::text::{cursor::Cursor, TextWrapping},
@@ -84,9 +84,11 @@ pub fn egui_transact_fn<'ctx, Buf: TextBuffer>(
             modifiers,
         } => match (key, pressed) {
             (Key::Backspace, true) => Some(Transaction::DeleteBackward),
-            (Key::Enter, true) => None,
-            (Key::ArrowLeft, true) => Some(Transaction::MoveCursorLeft { grapheme_count: 1 }),
-            (Key::ArrowRight, true) => Some(Transaction::MoveCursorRight { grapheme_count: 1 }),
+            (Key::Enter, true) => Some(Transaction::InsertAtCursorHead {
+                value: '\n'.to_string(),
+            }),
+            (Key::ArrowLeft, true) => Some(Transaction::MoveCursorLeft { grapheme_count: 0 }),
+            (Key::ArrowRight, true) => Some(Transaction::MoveCursorRight { grapheme_count: 0 }),
 
             _ => None,
         },
@@ -95,7 +97,9 @@ pub fn egui_transact_fn<'ctx, Buf: TextBuffer>(
             delta,
             modifiers,
         } => None,
-        Event::Paste(s) => None,
+        Event::Paste(s) => Some(Transaction::Paste {
+            clipboard: s.clone(),
+        }),
         Event::PointerButton {
             pos,
             button,
@@ -135,6 +139,19 @@ where
 
         let text_draw_pos = self.draw_position(galley.size(), response.rect);
 
+        let cursor_rect = self.cursor_rect(ui, &font_id, &galley);
+
+        match cursor_rect {
+            Ok(cursor_rect) => {
+                let top = cursor_rect.center_top();
+                let bottom = cursor_rect.center_bottom();
+                tracing::info!("{:?}, {:?}", top, bottom);
+
+                // painter.line_segment([top, bottom], (4., Color32::RED));
+            }
+            Err(err) => tracing::error!("{:?}", err),
+        }
+
         painter.galley(text_draw_pos, galley);
 
         let events = ui.input(|i| i.events.clone());
@@ -142,12 +159,11 @@ where
         // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
 
         for event in &events {
-            let edit_ctx = &(self.edit_ctx);
-            let transaction = &self.0.emit_transcation(event);
+            let transaction = self.emit_transcation(event);
 
             match transaction {
                 Some(t) => {
-                    let success = self.edit_ctx().consume_transaction::<Buffer>(t.clone());
+                    let _ = self.edit_ctx().consume_transaction::<Buffer>(t);
                 }
                 _ => {}
             }
@@ -288,71 +304,96 @@ where
         text_draw_pos
     }
 
-    pub fn paint_cursor(
-        &self,
+    pub fn cursor_rect(
+        &mut self,
         ui: &Ui,
         font_id: &FontId,
-        painter: &Painter,
-        pos: Pos2,
         galley: &Galley,
-        cursor: &Cursor,
-    ) -> Rect {
-        let row_height = ui.fonts(|f| f.row_height(&font_id));
+    ) -> Result<Rect, TextEditorError> {
+        let cursor_coords = self
+            .0
+            .edit_ctx
+            .text_buffer
+            .cursor_coords(self.0.edit_ctx.cursor_range)?;
 
-        let mut cursor_rect = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
+        let CursorCoords { row, col } = cursor_coords;
 
-        cursor_rect.max.y = cursor_rect.max.y.at_least(cursor_rect.min.y + row_height); // Handle completely empty galleys
-        cursor_rect = cursor_rect.expand(1.5); // slightly above/below row
+        tracing::info!("Cursor Range: {:?}", self.0.edit_ctx.cursor_range);
 
-        let top = cursor_rect.center_top();
-        let bottom = cursor_rect.center_bottom();
+        tracing::info!("Cursor coords: ({:?},{:?})", row, col);
 
-        painter.line_segment([top, bottom], (1., Color32::RED));
+        let galley_row = &galley.rows[row];
 
-        cursor_rect
+        let screen_x = galley_row.x_offset(col);
+
+        let cursor_rect = Rect::from_min_max(
+            Pos2::new(screen_x, galley_row.min_y()),
+            Pos2::new(screen_x, galley_row.max_y()),
+        );
+
+        // let row_height = ui.fonts(|f| f.row_height(&font_id));
+
+        // cursor_rect.max.y = cursor_rect.max.y.at_least(cursor_rect.min.y + row_height); // Handle completely empty galleys
+        // cursor_rect = cursor_rect.expand(1.5); // slightly above/below row
+
+        Ok(cursor_rect)
     }
+
+    // pub fn cursor_draw_posiiton(galley: Galley, cursor_range: CursorRange) -> Rect {
+    //     for row in &galley.rows {
+    //         let col = 1;
+    //         let screen_x = row.x_offset(col);
+
+    //         let cursor_rect = Rect::from_min_max(
+    //             Pos2::new(screen_x, row.min_y()),
+    //             Pos2::new(screen_x, row.max_y()),
+    //         );
+    //     }
+    // }
 }
 
-impl<'ctx, Buffer: TextBuffer> egui::Widget for EguiTextEditor<Buffer> {
-    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
-        let font_id = FontSelection::default().resolve(ui.style());
+// impl<'ctx, Buffer: TextBuffer> egui::Widget for EguiTextEditor<Buffer> {
+//     fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
+//         let font_id = FontSelection::default().resolve(ui.style());
 
-        let galley = self.layouter(ui, ui.available_width());
+//         let galley = self.layouter(ui, ui.available_width());
 
-        let desired_size = self.size(ui, galley.size(), &font_id);
+//         let desired_size = self.size(ui, galley.size(), &font_id);
 
-        let (auto_id, rect) = ui.allocate_space(desired_size);
+//         let (auto_id, rect) = ui.allocate_space(desired_size);
 
-        let id = ui.make_persistent_id(self.view_ctx().id);
+//         let id = ui.make_persistent_id(self.view_ctx().id);
 
-        let sense = Sense::click_and_drag();
+//         let sense = Sense::click_and_drag();
 
-        let mut response = ui.interact(rect, auto_id, sense);
+//         let mut response = ui.interact(rect, auto_id, sense);
 
-        let painter = ui.painter_at(rect.expand(1.0)); // expand to avoid clipping cursor
+//         let painter = ui.painter_at(rect.expand(1.0)); // expand to avoid clipping cursor
 
-        let text_draw_pos = self.draw_position(galley.size(), response.rect);
+//         let text_draw_pos = self.draw_position(galley.size(), response.rect);
 
-        painter.galley(text_draw_pos, galley);
+//         self.paint_cursor(ui, &font_id, &painter, &galley);
 
-        let events = ui.input(|i| i.events.clone());
+//         painter.galley(text_draw_pos, galley);
 
-        // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
+//         let events = ui.input(|i| i.events.clone());
 
-        for event in &events {
-            let transaction = self.emit_transcation(event);
+//         // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
 
-            match transaction {
-                Some(t) => {
-                    let success = self.edit_ctx().consume_transaction::<Buffer>(t);
-                }
-                _ => {}
-            }
-        }
+//         for event in &events {
+//             let transaction = self.emit_transcation(event);
 
-        response
-    }
-}
+//             match transaction {
+//                 Some(t) => {
+//                     let success = self.edit_ctx().consume_transaction::<Buffer>(t);
+//                 }
+//                 _ => {}
+//             }
+//         }
+
+//         response
+//     }
+// }
 
 #[derive(Clone, Default)]
 pub struct TextEditorState {

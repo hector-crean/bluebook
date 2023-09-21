@@ -1,7 +1,10 @@
 use std::borrow::Cow;
 
+// use unicode_segmentation::Graphemes;
+
 use super::grapheme::Graphemes;
-use crate::text_buffer_cursor::{TextBufferCursor, TextBufferCursorError};
+use crate::line::LineWithEnding;
+use crate::text_buffer_cursor::{CursorCoords, TextBufferCursor, TextBufferCursorError};
 
 use crate::movement::Direction;
 
@@ -102,6 +105,10 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
         graphemes.is_grapheme_boundary(self.cursor_range.head)
     }
 
+    fn next_boundary(&self) -> Option<usize> {
+        let mut graphemes = Graphemes::new(&self.buffer, false);
+    }
+
     fn next_grapheme_offset(&self) -> Option<usize> {
         let CursorRange { head, anchor: _ } = self.cursor_range;
 
@@ -118,6 +125,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
         graphemes.next_back().map(|item| item.byte_offset)
     }
 
+    ///Like most indexing operations, the count starts from zero, so nth(0) returns the first value, nth(1) the second, and so on.
     fn nth_next_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
         let CursorRange { head, anchor: _ } = self.cursor_range;
 
@@ -128,6 +136,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
             .map(|item| item.byte_offset)
             .ok_or(TextBufferCursorError::NextGraphemeOffsetError)
     }
+    ///Like most indexing operations, the count starts from zero, so nth(0) returns the first value, nth(1) the second, and so on.
     fn nth_prev_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
         let CursorRange { head, anchor: _ } = self.cursor_range;
 

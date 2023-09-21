@@ -15,6 +15,17 @@ pub enum TextBufferCursorError {
     CodepointBoundaryError { byte_offset: usize },
 }
 
+#[derive(Debug)]
+pub struct CursorCoords {
+    pub row: usize,
+    pub col: usize,
+}
+impl CursorCoords {
+    pub fn new(row: usize, col: usize) -> Self {
+        Self { row, col }
+    }
+}
+
 pub trait TextBufferCursor<'cursor> {
     // /// Set cursor position.
     fn set_anchor(self, byte_offset: usize) -> Self;
@@ -35,6 +46,10 @@ pub trait TextBufferCursor<'cursor> {
 
     /// Get the next grapheme offset from the given offset, if it exists.
     fn next_grapheme_offset(&self) -> Option<usize>;
+
+    // fn peek_prev_grapheme(&self) -> Option<&str>;
+
+    // fn peek_next_grapheme(&self) -> Option<&str>;
 
     fn nth_next_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError>;
 

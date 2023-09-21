@@ -1,5 +1,6 @@
 use super::cursor_impl::{CursorRange, PeritextCursor};
-use crate::text_buffer_cursor::{TextBufferCursor, TextBufferCursorError};
+use crate::line::LineWithEnding;
+use crate::text_buffer_cursor::{CursorCoords, TextBufferCursor, TextBufferCursorError};
 use crate::{
     span::Span,
     text_buffer::{TextBuffer, TextBufferError},
@@ -10,6 +11,8 @@ use std::{
 };
 
 use peritext::rich_text::{self, IndexType, RichText as RichTextInner};
+
+use unicode_segmentation::UnicodeSegmentation;
 
 impl From<peritext::rich_text::Span> for Span {
     fn from(val: peritext::rich_text::Span) -> Self {
@@ -55,6 +58,29 @@ impl TextBuffer for Peritext {
         }
     }
 
+    fn cursor_coords(
+        &mut self,
+        cursor_range: CursorRange,
+    ) -> Result<CursorCoords, TextBufferCursorError> {
+        let buf = self.inner.to_string().clone();
+        let s = &buf[0..cursor_range.head];
+        let line_iter = LineWithEnding::new(s);
+
+        let row: usize = 0;
+        let col: usize = 0;
+
+        for (line_idx, line) in line_iter.enumerate() {
+            let row = line_idx;
+        }
+
+        let g = UnicodeSegmentation::graphemes(s, true).collect::<Vec<&str>>();
+
+        let coords = CursorCoords::new(row, col);
+        tracing::info!("{:?}", coords);
+
+        Ok(coords)
+    }
+
     // pub fn iter(&self) -> impl Iterator<Item = Span> + '_ {
     fn annotate<R>(&mut self, range: R, annotation: peritext::Style)
     where
@@ -68,7 +94,7 @@ impl TextBuffer for Peritext {
     }
 
     fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferError> {
-        self.inner.insert(offset, s);
+        self.inner.insert_utf16(offset, s);
 
         Ok(offset + s.len())
     }
@@ -117,7 +143,7 @@ impl TextBuffer for Peritext {
         };
 
         self.inner.delete(start..end);
-        self.inner.insert(start, replace_with);
+        self.inner.insert_utf16(start, replace_with);
 
         Ok(Range {
             start,

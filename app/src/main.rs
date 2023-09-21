@@ -1,9 +1,7 @@
-use app::{
+use bluebook_app::{
     easy_mark_editor::{self, EasyMarkEditor},
     formatting::Formatting,
-    widgets::rich_text_editor::editor_view::{
-        editor_ui, egui_transact_fn, EguiTextEditor, EguiViewCtx,
-    },
+    widgets::rich_text_editor::view::{editor_ui, egui_transact_fn, EguiTextEditor, EguiViewCtx},
 };
 use bluebook_core::text_buffer::TextBuffer;
 use bluebook_core::{
@@ -16,6 +14,11 @@ use egui::{epaint::text::cursor::Cursor, Align2, Id, ScrollArea, Vec2, Widget};
 use peritext::Style;
 use serde_json::json;
 use string_cache::Atom;
+use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
+
+use std::sync::Mutex;
+use tracing::{span, Level};
+use tracing_subscriber::{prelude::*, registry::Registry, Layer};
 
 // #[derive(serde::Deserialize, serde::Serialize)]
 struct TextEditApp {
@@ -65,6 +68,15 @@ impl eframe::App for TextEditApp {
 }
 
 fn main() -> Result<(), eframe::Error> {
+    let filter = filter::Targets::new()
+        .with_target("bluebook_core", Level::INFO)
+        .with_target("bluebook_app", Level::INFO);
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(filter)
+        .init();
+
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
         let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());

@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "bluebook_app"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,11 +8,15 @@ edition = "2021"
 [dependencies]
 egui = { version = "0.22.0" }
 serde = { version = "1.0.150", features = ["derive"] }
-eframe = { version = "0.22.0", features=["wgpu"]}
+eframe = { version = "0.22.0", features = ["wgpu"] }
 serde_json = "1"
 strum = { version = "0.25", features = ["derive"] }
-bluebook_core = { path = "../bluebook_core"}
-peritext = { path = "../bluebook_backends/peritext"}
+bluebook_core = { path = "../bluebook_core" }
+peritext = { path = "../bluebook_backends/peritext" }
 thiserror = "1.0.47"
-chrono = {version="0.4.26", features=["serde"]}
+chrono = { version = "0.4.26", features = ["serde"] }
 string_cache = "0.8.7"
+
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

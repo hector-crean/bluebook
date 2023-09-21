@@ -1,4 +1,5 @@
-use egui::Painter;
+use bluebook_core::buffer::peritext_buffer::cursor_impl::CursorRange;
+use egui::{Galley, Painter, Pos2, Rect};
 
 pub struct Drawer {
     p: Painter,

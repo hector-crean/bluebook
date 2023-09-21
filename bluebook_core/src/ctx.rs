@@ -1,4 +1,6 @@
-use crate::text_buffer_cursor::TextBufferCursor;
+use tracing::info;
+
+use crate::text_buffer_cursor::{TextBufferCursor, TextBufferCursorError};
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
     error::TextEditorError, text_buffer::TextBuffer,
@@ -29,7 +31,7 @@ where
         &mut self,
         transaction: Transaction,
     ) -> Result<bool, TextEditorError> {
-        match transaction {
+        let success = match transaction {
             Transaction::DeleteSelection => match self.cursor_range.is_empty() {
                 true => Ok(false),
                 false => {
@@ -66,13 +68,13 @@ where
                 let CursorRange { head, .. } = self.cursor_range;
                 let byte_idx = self.text_buffer.write(head, &s)?;
                 self.cursor_range.set_point(byte_idx);
-                println!("{:?}", byte_idx);
                 Ok(true)
             }
-            Transaction::MoveCursorHeadTo { offset } => {
-                let r = CursorRange::new(self.cursor_range.anchor, offset);
 
-                let cursor = self.text_buffer.cursor(r)?;
+            Transaction::MoveCursorHeadTo { offset } => {
+                let r = self.cursor_range.set_head(offset);
+
+                let cursor = self.text_buffer.cursor(*r)?;
 
                 self.cursor_range.set(cursor.range());
 
@@ -81,11 +83,23 @@ where
             Transaction::MoveCursorLeft { grapheme_count } => {
                 let cursor = self.text_buffer.cursor(self.cursor_range)?;
 
-                let offset = cursor.nth_prev_grapheme_boundary(grapheme_count)?;
+                let offset = cursor.nth_prev_grapheme_boundary(grapheme_count);
 
-                self.cursor_range.set_point(offset);
+                let transaction_suceeded = match offset {
+                    Ok(offset) => {
+                        self.cursor_range.set_point(offset);
+                        true
+                    }
+                    Err(err) => match err {
+                        TextBufferCursorError::PrevGraphemeOffsetError => {
+                            // self.cursor_range.set_point(0);
+                            true
+                        }
+                        _ => false,
+                    },
+                };
 
-                Ok(true)
+                Ok(transaction_suceeded)
             }
             Transaction::MoveCursorRight { grapheme_count } => {
                 let cursor = self.text_buffer.cursor(self.cursor_range)?;
@@ -97,6 +111,10 @@ where
                 Ok(true)
             }
             _ => Ok(false),
-        }
+        };
+
+        tracing::info!("Cursor Range {:?}", self.cursor_range);
+
+        success
     }
 }

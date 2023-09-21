@@ -2,6 +2,12 @@ pub struct LineWithEnding<'s> {
     input: &'s str,
 }
 
+impl<'s> LineWithEnding<'s> {
+    pub fn new(s: &'s str) -> Self {
+        Self { input: s }
+    }
+}
+
 impl<'s> Iterator for LineWithEnding<'s> {
     type Item = &'s str;
     fn next(&mut self) -> Option<Self::Item> {

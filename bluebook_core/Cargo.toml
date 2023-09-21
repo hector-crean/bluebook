@@ -14,16 +14,17 @@ serde = { version = "1.0.150", features = ["derive"] }
 serde_json = "1.0.89"
 chrono = { versuon = "0.4.26", features = ["serde"] }
 
-peritext = { path = "../bluebook_backends/peritext"}
+peritext = { path = "../bluebook_backends/peritext" }
 
 strum = { version = "0.24", features = ["derive"] }
 
 
-ropey = { version = "1.6.0"}
-unicode-segmentation = { version = "1.10"}
+ropey = { version = "1.6.0" }
+unicode-segmentation = { version = "1.10" }
 
 string_cache = "0.8.7"
 
 fxhash = "0.2.1"
 
 smallvec = "1.11.0"
+tracing = "0.1"

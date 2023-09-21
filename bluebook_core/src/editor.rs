@@ -2,11 +2,8 @@ use crate::ctx::TextEditorContext;
 use crate::expr::Expr;
 use crate::text_buffer_cursor::TextBufferCursor;
 use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange,
-    command::Transaction,
-    context::{FromContext, Handler},
-    error::TextEditorError,
-    text_buffer::TextBuffer,
+    buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
+    error::TextEditorError, text_buffer::TextBuffer,
 };
 use serde::{Deserialize, Serialize};
 

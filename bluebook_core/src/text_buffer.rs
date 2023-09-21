@@ -1,6 +1,7 @@
 use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange, span::Span,
-    text_buffer_cursor::TextBufferCursorError,
+    buffer::peritext_buffer::cursor_impl::CursorRange,
+    span::Span,
+    text_buffer_cursor::{CursorCoords, TextBufferCursorError},
 };
 
 use super::text_buffer_cursor::TextBufferCursor;
@@ -64,6 +65,11 @@ pub trait TextBuffer {
     /// Returns None if the position isn't a codepoint boundary.
     fn cursor(&mut self, range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError>;
     // ^ should I specify cursors?
+
+    fn cursor_coords(
+        &mut self,
+        cursor_range: CursorRange,
+    ) -> Result<CursorCoords, TextBufferCursorError>;
 
     fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferError>;
 

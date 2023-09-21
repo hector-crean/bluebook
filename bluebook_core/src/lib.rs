@@ -1,6 +1,6 @@
 pub mod buffer;
+pub mod char;
 pub mod command;
-pub mod context;
 pub mod ctx;
 pub mod editor;
 pub mod error;
