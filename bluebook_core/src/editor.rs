@@ -1,19 +1,20 @@
 use crate::ctx::TextEditorContext;
 use crate::expr::Expr;
-use crate::text_buffer_cursor::TextBufferCursor;
+use crate::text_buffer_cursor::{CursorDocCoords, TextBufferCursor};
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
-    error::TextEditorError, text_buffer::TextBuffer,
+    error::TextBufferWithCursorError, text_buffer::TextBuffer,
 };
 use serde::{Deserialize, Serialize};
 
-pub struct TextEditor<Buf: TextBuffer, EventRep, V> {
+pub struct TextEditor<Buf: TextBuffer, EventRep, ViewCtx> {
     pub edit_ctx: TextEditorContext<Buf>,
     pub transact_fn: fn(&TextEditorContext<Buf>, &EventRep) -> Option<Transaction>,
-    pub view_ctx: V,
+    // pub cursor_view_transform_fn: fn(&CursorDocCoords, CursorFnArgs) -> CursorDocCoords,
+    pub view_ctx: ViewCtx,
 }
 
-impl<Buf: TextBuffer, EventRep, S> Expr for TextEditor<Buf, EventRep, S> {
+impl<Buf: TextBuffer, EventRep, ViewCtx> Expr for TextEditor<Buf, EventRep, ViewCtx> {
     type Repr<T> = T;
     type Ctx = TextEditorContext<Buf>;
 
@@ -26,11 +27,12 @@ impl<Buf: TextBuffer, EventRep, S> Expr for TextEditor<Buf, EventRep, S> {
     }
 }
 
-impl<Buf: TextBuffer, EventRep, V> TextEditor<Buf, EventRep, V> {
+impl<Buf: TextBuffer, EventRep, ViewCtx> TextEditor<Buf, EventRep, ViewCtx> {
     pub fn new(
         edit_ctx: TextEditorContext<Buf>,
         transact_fn: fn(&TextEditorContext<Buf>, &EventRep) -> Option<Transaction>,
-        view_ctx: V,
+        // cursor_view_transform_fn: fn(&CursorDocCoords, CursorFnArgs) -> CursorDocCoords,
+        view_ctx: ViewCtx,
     ) -> Self {
         Self {
             edit_ctx,
@@ -41,7 +43,7 @@ impl<Buf: TextBuffer, EventRep, V> TextEditor<Buf, EventRep, V> {
     pub fn edit_ctx(&mut self) -> &mut TextEditorContext<Buf> {
         &mut self.edit_ctx
     }
-    pub fn view_ctx(&mut self) -> &mut V {
+    pub fn view_ctx(&mut self) -> &mut ViewCtx {
         &mut self.view_ctx
     }
     pub fn emit_transcation(&self, event: &EventRep) -> Option<Transaction> {

@@ -1,7 +1,7 @@
+use crate::graphemes::UnicodeSegmentationError;
+
 #[derive(thiserror::Error, Debug)]
-pub enum TextEditorError {
+pub enum TextBufferWithCursorError {
     #[error(transparent)]
-    TextBufferError(#[from] crate::text_buffer::TextBufferError),
-    #[error(transparent)]
-    TextBufferCursorError(#[from] crate::text_buffer_cursor::TextBufferCursorError),
+    UnicodeSegmentationError(#[from] UnicodeSegmentationError),
 }

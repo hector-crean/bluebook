@@ -1,9 +1,11 @@
+use serde_json::to_string;
 use tracing::info;
 
-use crate::text_buffer_cursor::{TextBufferCursor, TextBufferCursorError};
+use crate::error::TextBufferWithCursorError;
+use crate::text_buffer_cursor::TextBufferCursor;
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
-    error::TextEditorError, text_buffer::TextBuffer,
+    text_buffer::TextBuffer,
 };
 
 pub struct TextEditorContext<Buffer>
@@ -30,7 +32,7 @@ where
     pub fn consume_transaction<B: TextBuffer>(
         &mut self,
         transaction: Transaction,
-    ) -> Result<bool, TextEditorError> {
+    ) -> Result<bool, TextBufferWithCursorError> {
         let success = match transaction {
             Transaction::DeleteSelection => match self.cursor_range.is_empty() {
                 true => Ok(false),
@@ -48,7 +50,11 @@ where
 
                     let cursor = self.text_buffer.cursor(self.cursor_range)?;
 
-                    let offset = cursor.nth_prev_grapheme_boundary(1)?;
+                    let offset = if let Some(offset) = cursor.nth_prev_grapheme_boundary(1)? {
+                        offset
+                    } else {
+                        return Ok(false);
+                    };
 
                     drop(cursor);
 
@@ -66,7 +72,16 @@ where
             },
             Transaction::InsertAtCursorHead { value: s } | Transaction::Paste { clipboard: s } => {
                 let CursorRange { head, .. } = self.cursor_range;
+
                 let byte_idx = self.text_buffer.write(head, &s)?;
+                self.cursor_range.set_point(byte_idx);
+                Ok(true)
+            }
+
+            Transaction::InsertNewLine => {
+                let newline = &'\n'.to_string();
+                let CursorRange { head, .. } = self.cursor_range;
+                let byte_idx = self.text_buffer.write(head, newline)?;
                 self.cursor_range.set_point(byte_idx);
                 Ok(true)
             }
@@ -83,37 +98,31 @@ where
             Transaction::MoveCursorLeft { grapheme_count } => {
                 let cursor = self.text_buffer.cursor(self.cursor_range)?;
 
-                let offset = cursor.nth_prev_grapheme_boundary(grapheme_count);
-
-                let transaction_suceeded = match offset {
-                    Ok(offset) => {
+                let transaction_suceeded =
+                    if let Some(offset) = cursor.nth_prev_grapheme_boundary(grapheme_count)? {
                         self.cursor_range.set_point(offset);
                         true
-                    }
-                    Err(err) => match err {
-                        TextBufferCursorError::PrevGraphemeOffsetError => {
-                            // self.cursor_range.set_point(0);
-                            true
-                        }
-                        _ => false,
-                    },
-                };
+                    } else {
+                        return Ok(false);
+                    };
 
                 Ok(transaction_suceeded)
             }
             Transaction::MoveCursorRight { grapheme_count } => {
                 let cursor = self.text_buffer.cursor(self.cursor_range)?;
 
-                let offset = cursor.nth_next_grapheme_boundary(grapheme_count)?;
+                let transaction_suceeded =
+                    if let Some(offset) = cursor.nth_next_grapheme_boundary(grapheme_count)? {
+                        self.cursor_range.set_point(offset);
+                        true
+                    } else {
+                        return Ok(false);
+                    };
 
-                self.cursor_range.set_point(offset);
-
-                Ok(true)
+                Ok(transaction_suceeded)
             }
             _ => Ok(false),
         };
-
-        tracing::info!("Cursor Range {:?}", self.cursor_range);
 
         success
     }

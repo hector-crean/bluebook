@@ -24,3 +24,45 @@ impl<'s> Iterator for LineWithEnding<'s> {
         Some(line)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::LineWithEnding;
+
+    #[test]
+    fn test_empty_string() {
+        let s = "";
+        let str_array: Vec<&str> = vec![];
+
+        let lines: Vec<&str> = LineWithEnding::new(s).collect();
+        assert_eq!(lines, str_array);
+    }
+
+    #[test]
+    fn test_single_line() {
+        let s = "Hello, world!";
+        let lines: Vec<_> = LineWithEnding::new(s).collect();
+        assert_eq!(lines, ["Hello, world!"]);
+    }
+
+    #[test]
+    fn test_lines_with_newline() {
+        let s = "Line 1\nLine 2\nLine 3\n";
+        let lines: Vec<_> = LineWithEnding::new(s).collect();
+        assert_eq!(lines, ["Line 1\n", "Line 2\n", "Line 3\n"]);
+    }
+
+    #[test]
+    fn test_lines_without_newline() {
+        let s = "Line 1\nLine 2";
+        let lines: Vec<_> = LineWithEnding::new(s).collect();
+        assert_eq!(lines, ["Line 1\n", "Line 2"]);
+    }
+
+    #[test]
+    fn test_empty_lines() {
+        let s = "\n\n\n";
+        let lines: Vec<_> = LineWithEnding::new(s).collect();
+        assert_eq!(lines, ["\n", "\n", "\n"]);
+    }
+}

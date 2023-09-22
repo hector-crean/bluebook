@@ -1,10 +1,8 @@
 use super::cursor_impl::{CursorRange, PeritextCursor};
+use crate::error::TextBufferWithCursorError;
 use crate::line::LineWithEnding;
-use crate::text_buffer_cursor::{CursorCoords, TextBufferCursor, TextBufferCursorError};
-use crate::{
-    span::Span,
-    text_buffer::{TextBuffer, TextBufferError},
-};
+use crate::text_buffer_cursor::{CursorDocCoords, TextBufferCursor};
+use crate::{span::Span, text_buffer::TextBuffer};
 use std::{
     borrow::Cow,
     ops::{Range, RangeBounds},
@@ -43,41 +41,47 @@ impl TextBuffer for Peritext {
     fn cursor(
         &mut self,
         cursor_range: CursorRange,
-    ) -> Result<Self::Cursor<'_>, TextBufferCursorError> {
+    ) -> Result<Self::Cursor<'_>, TextBufferWithCursorError> {
         let new_cursor = PeritextCursor {
             buffer: self.inner.to_string().into(),
             cursor_range,
         };
 
-        if new_cursor.is_grapheme_boundary() {
-            Ok(new_cursor)
-        } else {
-            Err(TextBufferCursorError::CodepointBoundaryError {
-                byte_offset: cursor_range.head,
-            })
-        }
+        let is_boundary = new_cursor.is_grapheme_boundary()?;
+
+        Ok(new_cursor)
     }
 
     fn cursor_coords(
         &mut self,
         cursor_range: CursorRange,
-    ) -> Result<CursorCoords, TextBufferCursorError> {
-        let cursor = self.cursor(range);
+    ) -> Result<CursorDocCoords, TextBufferWithCursorError> {
         let buf = self.inner.to_string().clone();
-        let s = &buf[0..cursor_range.head];
-        let line_iter = LineWithEnding::new(s);
 
-        let row: usize = 0;
-        let col: usize = 0;
+        tracing::info!("{:?}", buf);
+
+        let line_iter = LineWithEnding::new(&buf[0..cursor_range.head]);
+
+        let mut byte_offset: usize = 0;
+        let mut row: usize = 0;
+        let mut col: usize = 0;
 
         for (line_idx, line) in line_iter.enumerate() {
-            let row = line_idx;
+            let g = UnicodeSegmentation::graphemes(&buf[byte_offset..cursor_range.head], true);
+
+            col = g.collect::<Vec<&str>>().len();
+
+            byte_offset += line.len();
+
+            row = line_idx;
+
+            // let newline_count = line.chars().filter(|&c| c == '\n').count();
+            // row += newline_count;
         }
 
-        let g = UnicodeSegmentation::graphemes(s, true).collect::<Vec<&str>>();
+        let coords = CursorDocCoords::new(row, col);
 
-        let coords = CursorCoords::new(row, col);
-        tracing::info!("{:?}", coords);
+        tracing::info!("coords: {:?}", coords);
 
         Ok(coords)
     }
@@ -94,13 +98,13 @@ impl TextBuffer for Peritext {
         rich_text::iter::Iter::new(&self.inner)
     }
 
-    fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferError> {
+    fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferWithCursorError> {
         self.inner.insert_utf16(offset, s);
 
         Ok(offset + s.len())
     }
 
-    fn drain<R>(&mut self, range: R) -> Result<Cow<str>, TextBufferError>
+    fn drain<R>(&mut self, range: R) -> Result<Cow<str>, TextBufferWithCursorError>
     where
         R: RangeBounds<usize>,
     {
@@ -127,7 +131,7 @@ impl TextBuffer for Peritext {
         &mut self,
         range: R,
         replace_with: &str,
-    ) -> Result<Range<usize>, TextBufferError>
+    ) -> Result<Range<usize>, TextBufferWithCursorError>
     where
         R: RangeBounds<usize>,
     {
@@ -159,7 +163,7 @@ impl TextBuffer for Peritext {
         self.inner.to_string().into()
     }
 
-    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, TextBufferError> {
+    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, TextBufferWithCursorError> {
         let str = self.inner.slice_str(range, IndexType::Utf16);
 
         Ok(str.into())

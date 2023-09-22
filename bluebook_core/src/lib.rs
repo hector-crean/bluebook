@@ -5,6 +5,7 @@ pub mod ctx;
 pub mod editor;
 pub mod error;
 pub mod expr;
+pub mod graphemes;
 pub mod line;
 pub mod line_ending;
 pub mod mode;

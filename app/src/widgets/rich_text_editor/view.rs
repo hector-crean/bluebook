@@ -12,10 +12,10 @@ use bluebook_core::{
     movement::{Direction, Movement},
     span::Span,
     text_buffer::TextBuffer,
-    text_buffer_cursor::{CursorCoords, TextBufferCursor},
+    text_buffer_cursor::{CursorDocCoords, TextBufferCursor},
 };
 use egui::{
-    epaint::text::{cursor::Cursor, TextWrapping},
+    epaint::text::{cursor::Cursor, Row, TextWrapping},
     text::{CCursor, LayoutJob, LayoutSection},
     vec2, Align, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, Key, Margin,
     NumExt, Painter, Pos2, Rect, Response, ScrollArea, Sense, TextFormat, Ui, Vec2,
@@ -23,15 +23,16 @@ use egui::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use string_cache::Atom;
+use tracing::info;
 
 use crate::formatting::{Formatting, TextFormatBuilder};
+
+use super::draw::Draw;
 
 #[derive(thiserror::Error, Debug)]
 pub enum TextEditorError {
     #[error(transparent)]
-    TextBufferError(#[from] bluebook_core::text_buffer::TextBufferError),
-    #[error(transparent)]
-    TextBufferCursorError(#[from] bluebook_core::text_buffer_cursor::TextBufferCursorError),
+    TextBufferCursorError(#[from] bluebook_core::error::TextBufferWithCursorError),
 }
 
 pub struct EguiViewCtx {
@@ -84,11 +85,9 @@ pub fn egui_transact_fn<'ctx, Buf: TextBuffer>(
             modifiers,
         } => match (key, pressed) {
             (Key::Backspace, true) => Some(Transaction::DeleteBackward),
-            (Key::Enter, true) => Some(Transaction::InsertAtCursorHead {
-                value: '\n'.to_string(),
-            }),
-            (Key::ArrowLeft, true) => Some(Transaction::MoveCursorLeft { grapheme_count: 0 }),
-            (Key::ArrowRight, true) => Some(Transaction::MoveCursorRight { grapheme_count: 0 }),
+            (Key::Enter, true) => Some(Transaction::InsertNewLine),
+            (Key::ArrowLeft, true) => Some(Transaction::MoveCursorLeft { grapheme_count: 1 }),
+            (Key::ArrowRight, true) => Some(Transaction::MoveCursorRight { grapheme_count: 1 }),
 
             _ => None,
         },
@@ -123,119 +122,60 @@ where
     fn editor_ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         let font_id = FontSelection::default().resolve(ui.style());
 
-        let galley = self.layouter(ui, ui.available_width());
+        // Calculate widget size and allocate space in one step:
+        let max_rect = ui
+            .available_rect_before_wrap()
+            .shrink2(self.view_ctx.margin);
 
-        let desired_size = self.size(ui, galley.size(), &font_id);
+        let galley = self.rich_text_layouter(ui, max_rect.width());
 
-        let (auto_id, rect) = ui.allocate_space(desired_size);
+        let (auto_id, rect) = {
+            let desired_size = self.size(ui, &galley.size(), &font_id);
+            ui.allocate_space(desired_size)
+        };
 
-        let id = ui.make_persistent_id(self.view_ctx().id);
-
-        let sense = Sense::click_and_drag();
-
-        let mut response = ui.interact(rect, auto_id, sense);
-
-        let painter = ui.painter_at(rect.expand(1.0)); // expand to avoid clipping cursor
-
-        let text_draw_pos = self.draw_position(galley.size(), response.rect);
-
-        let cursor_rect = self.cursor_rect(ui, &font_id, &galley);
-
-        match cursor_rect {
-            Ok(cursor_rect) => {
-                let top = cursor_rect.center_top();
-                let bottom = cursor_rect.center_bottom();
-                tracing::info!("{:?}, {:?}", top, bottom);
-
-                // painter.line_segment([top, bottom], (4., Color32::RED));
-            }
-            Err(err) => tracing::error!("{:?}", err),
-        }
-
-        painter.galley(text_draw_pos, galley);
-
+        // Interact and handle events:
+        let mut response = ui.interact(rect, auto_id, Sense::click_and_drag());
         let events = ui.input(|i| i.events.clone());
 
-        // let transactions = events.iter().map(|e| interpret_event(&self.ctx, e));
+        let requires_change = events.iter().any(|event| {
+            self.emit_transcation(event).map_or(false, |t| {
+                self.edit_ctx()
+                    .consume_transaction::<Buffer>(t)
+                    .unwrap_or(true)
+            })
+        });
 
-        for event in &events {
-            let transaction = self.emit_transcation(event);
-
-            match transaction {
-                Some(t) => {
-                    let _ = self.edit_ctx().consume_transaction::<Buffer>(t);
-                }
-                _ => {}
-            }
+        if requires_change {
+            response.mark_changed();
         }
 
-        response
-    }
-
-    // pub fn toggle(self, on: &'ctx mut bool) -> impl egui::Widget + 'ctx {
-    //     move |ui: &mut egui::Ui| self.text_editor_ui(ui, on)
-    // }
-
-    pub fn toggle_ui(&mut self, ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
-        //Widget code can be broken up in four steps:
-        //  1. Decide a size for the widget
-        //  2. Allocate space for it
-        //  3. Handle interactions with the widget (if any)
-        //  4. Paint the widget
-
-        // 1. Deciding widget size:
-        // You can query the `ui` how much space is available
-        let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
-
-        // 2. Allocating space:
-        // This is where we get a region of the screen assigned.
-        // We also tell the Ui to sense clicks in the allocated region.
-        let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
-
-        // 3. Interact: Time to check for clicks!
-        if response.clicked() {
-            *on = !*on;
-            response.mark_changed(); // report back that the value changed
-        }
-        // Attach some meta-data to the response which can be used by screen readers:
-        response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
-
-        // 4. Paint!
-        // Make sure we need to paint:
+        // Paint if visible:
         if ui.is_rect_visible(rect) {
-            // Let's ask for a simple animation from egui.
-            // egui keeps track of changes in the boolean associated with the id and
-            // returns an animated value in the 0-1 range for how much "on" we are.
-            let how_on = ui.ctx().animate_bool(response.id, *on);
-            // We will follow the current style by asking
-            // "how should something that is being interacted with be painted?".
-            // This will, for instance, give us different colors when the widget is hovered or clicked.
-            let visuals = ui.style().interact_selectable(&response, *on);
-            // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
-            let rect = rect.expand(visuals.expansion);
-            let radius = 0.5 * rect.height();
-            ui.painter()
-                .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
-            // Paint the circle, animating it from left to right with `how_on`:
-            let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
-            let center = egui::pos2(circle_x, rect.center().y);
-            ui.painter()
-                .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+            let draw_position = self.draw_position(galley.size(), rect);
+
+            let cursor_rect = self.cursor_rect(ui, &font_id, &galley, draw_position);
+
+            let painter = ui.painter_at(rect.expand(1.0));
+            let draw = Draw::new(&painter);
+
+            if let Ok(cursor_rect) = cursor_rect {
+                draw.draw_cursor(cursor_rect);
+            }
+            draw.draw_text(draw_position, galley);
         }
 
-        // All done! Return the interaction response so the user can check what happened
-        // (hovered, clicked, ...) and maybe show a tooltip:
         response
     }
 
-    fn layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
+    fn rich_text_layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
         let buffer = self.0.edit_ctx.text_buffer.take();
 
         let mut job = LayoutJob {
             text: buffer.into(),
             break_on_newline: true,
             wrap: TextWrapping {
-                max_width,
+                max_width: f32::INFINITY,
                 ..Default::default()
             },
             ..Default::default()
@@ -271,22 +211,22 @@ where
         ui.fonts(|f| f.row_height(&font_id))
     }
 
-    fn size(&self, ui: &Ui, galley_size: Vec2, font_id: &FontId) -> Vec2 {
+    fn size(&self, ui: &Ui, galley_size: &Vec2, font_id: &FontId) -> Vec2 {
         let available_width = ui.available_width().at_least(24.0);
+        let horizontal_justify = ui.layout().horizontal_justify();
+        let text_edit_width = ui.spacing().text_edit_width;
 
-        let wrap_width = if ui.layout().horizontal_justify() {
+        let wrap_width = if horizontal_justify {
             available_width
         } else {
-            ui.spacing().text_edit_width.min(available_width)
+            text_edit_width.min(available_width)
         } - self.0.view_ctx.margin.x * 2.0;
 
         let desired_width = galley_size.x.max(wrap_width);
-
         let row_height = ui.fonts(|f| f.row_height(&font_id));
+        let desired_height = 4.0 * row_height;
 
-        let desired_height = 4. * row_height;
-
-        let desired_size = vec2(desired_width, galley_size.y.max(desired_height))
+        let desired_size = Vec2::new(desired_width, galley_size.y.max(desired_height))
             .at_least(Vec2::ZERO - self.0.view_ctx.margin * 2.0);
 
         desired_size
@@ -309,47 +249,47 @@ where
         ui: &Ui,
         font_id: &FontId,
         galley: &Galley,
+        draw_position: Pos2,
     ) -> Result<Rect, TextEditorError> {
-        let cursor_coords = self
+        let CursorDocCoords { row, col } = self
             .0
             .edit_ctx
             .text_buffer
             .cursor_coords(self.0.edit_ctx.cursor_range)?;
 
-        let CursorCoords { row, col } = cursor_coords;
+        fn is_row_wrapped(row: &Row) -> bool {
+            !row.ends_with_newline
+        }
 
-        tracing::info!("Cursor Range: {:?}", self.0.edit_ctx.cursor_range);
+        let prev_wrapped_row_count = {
+            galley
+                .rows
+                .iter()
+                .take(row)
+                .filter(|row| is_row_wrapped(row))
+                .count()
+        };
 
-        tracing::info!("Cursor coords: ({:?},{:?})", row, col);
+        tracing::info!("{:?}", prev_wrapped_row_count);
 
-        let galley_row = &galley.rows[row];
+        let galley_row = &galley.rows[row + prev_wrapped_row_count];
 
         let screen_x = galley_row.x_offset(col);
 
+        let row_height = ui.fonts(|f| f.row_height(&font_id));
+
         let cursor_rect = Rect::from_min_max(
-            Pos2::new(screen_x, galley_row.min_y()),
-            Pos2::new(screen_x, galley_row.max_y()),
-        );
-
-        // let row_height = ui.fonts(|f| f.row_height(&font_id));
-
-        // cursor_rect.max.y = cursor_rect.max.y.at_least(cursor_rect.min.y + row_height); // Handle completely empty galleys
-        // cursor_rect = cursor_rect.expand(1.5); // slightly above/below row
+            draw_position + vec2(screen_x, galley_row.min_y()),
+            draw_position
+                + vec2(
+                    screen_x,
+                    galley_row.max_y().at_least(galley_row.min_y() + row_height),
+                ),
+        )
+        .expand(1.5);
 
         Ok(cursor_rect)
     }
-
-    // pub fn cursor_draw_posiiton(galley: Galley, cursor_range: CursorRange) -> Rect {
-    //     for row in &galley.rows {
-    //         let col = 1;
-    //         let screen_x = row.x_offset(col);
-
-    //         let cursor_rect = Rect::from_min_max(
-    //             Pos2::new(screen_x, row.min_y()),
-    //             Pos2::new(screen_x, row.max_y()),
-    //         );
-    //     }
-    // }
 }
 
 // impl<'ctx, Buffer: TextBuffer> egui::Widget for EguiTextEditor<Buffer> {

@@ -1,23 +1,17 @@
+use unicode_segmentation::GraphemeIncomplete;
+
 use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange,
-    span::Span,
-    text_buffer_cursor::{CursorCoords, TextBufferCursorError},
+    buffer::peritext_buffer::cursor_impl::CursorRange, error::TextBufferWithCursorError,
+    graphemes::UnicodeSegmentationError, span::Span, text_buffer_cursor::CursorDocCoords,
 };
 
 use super::text_buffer_cursor::TextBufferCursor;
 
 use std::{
     borrow::Cow,
+    fmt::Debug,
     ops::{Range, RangeBounds},
 };
-
-#[derive(thiserror::Error, Debug)]
-pub enum TextBufferError {
-    #[error("buffer could not be flushed")]
-    FlushError,
-    #[error("write error: {content:?}")]
-    WriteError { content: String },
-}
 
 /**
  *
@@ -63,17 +57,18 @@ pub trait TextBuffer {
     /// Create a cursor with a reference to the text and a offset position.
     ///
     /// Returns None if the position isn't a codepoint boundary.
-    fn cursor(&mut self, range: CursorRange) -> Result<Self::Cursor<'_>, TextBufferCursorError>;
+    fn cursor(&mut self, range: CursorRange)
+        -> Result<Self::Cursor<'_>, TextBufferWithCursorError>;
     // ^ should I specify cursors?
 
     fn cursor_coords(
         &mut self,
         cursor_range: CursorRange,
-    ) -> Result<CursorCoords, TextBufferCursorError>;
+    ) -> Result<CursorDocCoords, TextBufferWithCursorError>;
 
-    fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferError>;
+    fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferWithCursorError>;
 
-    fn drain<R>(&mut self, range: R) -> Result<Cow<str>, TextBufferError>
+    fn drain<R>(&mut self, range: R) -> Result<Cow<str>, TextBufferWithCursorError>
     where
         R: RangeBounds<usize>;
 
@@ -81,7 +76,7 @@ pub trait TextBuffer {
         &mut self,
         range: R,
         replace_with: &str,
-    ) -> Result<Range<usize>, TextBufferError>
+    ) -> Result<Range<usize>, TextBufferWithCursorError>
     where
         R: RangeBounds<usize>;
 
@@ -90,7 +85,7 @@ pub trait TextBuffer {
     fn take(&self) -> Cow<str>;
 
     /// Get slice of text at range.
-    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, TextBufferError>;
+    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, TextBufferWithCursorError>;
 
     /// Get length of text (in bytes).
     fn len(&self) -> usize;

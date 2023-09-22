@@ -1,14 +1,24 @@
-use bluebook_core::buffer::peritext_buffer::cursor_impl::CursorRange;
-use egui::{Galley, Painter, Pos2, Rect};
+use std::{ops::Add, sync::Arc};
 
-pub struct Drawer {
-    p: Painter,
+use bluebook_core::buffer::peritext_buffer::cursor_impl::CursorRange;
+use egui::{Color32, Galley, Painter, Pos2, Rect};
+
+pub struct Draw<'painter> {
+    painter: &'painter Painter,
 }
 
-impl Drawer {
-    pub fn new(p: Painter) -> Self {
-        Drawer { p }
+impl<'painter> Draw<'painter> {
+    pub fn new(painter: &'painter Painter) -> Self {
+        Draw { painter }
     }
 
-    pub fn draw(self) {}
+    pub fn draw_cursor(&self, rect: Rect) {
+        let top = rect.center_top();
+        let bottom = rect.center_bottom();
+
+        self.painter.line_segment([top, bottom], (1., Color32::RED));
+    }
+    pub fn draw_text(&self, pos: Pos2, galley: Arc<Galley>) {
+        self.painter.galley(pos, galley);
+    }
 }

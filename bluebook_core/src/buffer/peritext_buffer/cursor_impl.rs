@@ -2,11 +2,16 @@ use std::borrow::Cow;
 
 // use unicode_segmentation::Graphemes;
 
-use super::grapheme::Graphemes;
+// use super::grapheme::Graphemes;
+use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete, Graphemes, UnicodeSegmentation};
+
+use crate::error::TextBufferWithCursorError;
 use crate::line::LineWithEnding;
-use crate::text_buffer_cursor::{CursorCoords, TextBufferCursor, TextBufferCursorError};
+use crate::text_buffer_cursor::{CursorDocCoords, TextBufferCursor};
 
 use crate::movement::Direction;
+
+use crate::graphemes::UnicodeSegmentationError;
 
 /// A single selection range.
 ///
@@ -99,53 +104,93 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
         self.cursor_range
     }
 
-    fn is_grapheme_boundary(&self) -> bool {
-        let graphemes = Graphemes::new(&self.buffer, false);
+    fn is_grapheme_boundary(&self) -> Result<bool, UnicodeSegmentationError> {
+        // let graphemes = Graphemes::new(&self.buffer, false);
 
-        graphemes.is_grapheme_boundary(self.cursor_range.head)
+        let s = self.buffer.as_ref();
+
+        let g = UnicodeSegmentation::graphemes(s, false);
+
+        let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
+
+        gc.is_boundary(s, 0)
+            .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))
     }
 
-    fn next_boundary(&self) -> Option<usize> {
-        let mut graphemes = 
+    fn next_grapheme_boundary(&self) -> Result<Option<usize>, UnicodeSegmentationError> {
+        let s = self.buffer.as_ref();
+
+        let g = UnicodeSegmentation::graphemes(s, false);
+
+        let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
+
+        gc.next_boundary(s, 0)
+            .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))
     }
 
-    fn next_grapheme_offset(&self) -> Option<usize> {
-        let CursorRange { head, anchor: _ } = self.cursor_range;
+    fn prev_grapheme_boundary(&self) -> Result<Option<usize>, UnicodeSegmentationError> {
+        let s = self.buffer.as_ref();
 
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
+        let g = UnicodeSegmentation::graphemes(s, false);
 
-        graphemes.next().map(|item| item.byte_offset)
+        let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
+
+        gc.prev_boundary(s, 0)
+            .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))
     }
 
-    fn prev_grapheme_offset(&self) -> Option<usize> {
-        let CursorRange { head, anchor: _ } = self.cursor_range;
+    fn nth_next_grapheme_boundary(
+        &self,
+        n: usize,
+    ) -> Result<Option<usize>, UnicodeSegmentationError> {
+        let s = self.buffer.as_ref();
 
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
+        let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
-        graphemes.next_back().map(|item| item.byte_offset)
+        for i in 0..n {
+            let next_byte_offset = gc
+                .next_boundary(s, 0)
+                .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))?;
+
+            match next_byte_offset {
+                Some(next_byte_offset) => {
+                    gc.set_cursor(next_byte_offset);
+
+                    continue;
+                }
+                None => {
+                    return Ok(None);
+                }
+            }
+        }
+
+        Ok(Some(gc.cur_cursor()))
     }
+    fn nth_prev_grapheme_boundary(
+        &self,
+        n: usize,
+    ) -> Result<Option<usize>, UnicodeSegmentationError> {
+        let s = self.buffer.as_ref();
 
-    ///Like most indexing operations, the count starts from zero, so nth(0) returns the first value, nth(1) the second, and so on.
-    fn nth_next_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
-        let CursorRange { head, anchor: _ } = self.cursor_range;
+        let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
+        for i in 0..n {
+            let prev_byte_offset = gc
+                .prev_boundary(s, 0)
+                .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))?;
 
-        graphemes
-            .nth(n)
-            .map(|item| item.byte_offset)
-            .ok_or(TextBufferCursorError::NextGraphemeOffsetError)
-    }
-    ///Like most indexing operations, the count starts from zero, so nth(0) returns the first value, nth(1) the second, and so on.
-    fn nth_prev_grapheme_boundary(&self, n: usize) -> Result<usize, TextBufferCursorError> {
-        let CursorRange { head, anchor: _ } = self.cursor_range;
+            match prev_byte_offset {
+                Some(prev_byte_offset) => {
+                    gc.set_cursor(prev_byte_offset);
+                    continue;
+                }
+                None => {
+                    return Ok(None);
+                }
+            }
+        }
 
-        let mut graphemes = Graphemes::new(&self.buffer, false).set_cursor_offet(head);
-
-        graphemes
-            .nth_back(n)
-            .map(|item| item.byte_offset)
-            .ok_or(TextBufferCursorError::PrevGraphemeOffsetError)
+        Ok(Some(gc.cur_cursor()))
     }
 
     // fn move_head_horizontally(self, dir: Direction, count: usize, behaviour: Movement) -> Self {
