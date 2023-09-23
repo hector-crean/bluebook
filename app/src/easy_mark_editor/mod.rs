@@ -43,7 +43,7 @@ impl EasyMarkEditor {
     pub fn panels(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("easy_mark_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
-            ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {})
+            ui.allocate_ui_with_layout(ui.available_size(), layout, |_ui| {})
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

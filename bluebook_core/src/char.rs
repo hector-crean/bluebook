@@ -32,7 +32,7 @@ impl<'s> DoubleEndedIterator for CharIter<'s> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.start < self.end {
             let slice = &self.slice[..self.end - self.start];
-            let ch = slice.chars().rev().next().unwrap();
+            let ch = slice.chars().next_back().unwrap();
             self.end -= ch.len_utf8();
             Some(ch)
         } else {

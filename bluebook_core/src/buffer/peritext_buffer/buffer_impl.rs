@@ -47,7 +47,7 @@ impl TextBuffer for Peritext {
             cursor_range,
         };
 
-        let is_boundary = new_cursor.is_grapheme_boundary()?;
+        let _is_boundary = new_cursor.is_grapheme_boundary()?;
 
         Ok(new_cursor)
     }

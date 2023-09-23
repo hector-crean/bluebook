@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum Author {
@@ -33,8 +33,8 @@ impl Citation {
                     .authors
                     .iter()
                     .map(|a| match a {
-                        Author::Individual(name) => format!("{}", name),
-                        Author::Group(name) => format!("{}", name),
+                        Author::Individual(name) => name.to_string(),
+                        Author::Group(name) => name.to_string(),
                     })
                     .collect::<Vec<_>>()
                     .join(", ");

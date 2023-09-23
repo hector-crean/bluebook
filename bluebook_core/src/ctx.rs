@@ -1,5 +1,5 @@
-use serde_json::to_string;
-use tracing::info;
+
+
 
 use crate::error::TextBufferWithCursorError;
 use crate::text_buffer_cursor::TextBufferCursor;
@@ -24,8 +24,8 @@ where
 {
     pub fn new(text_buffer: Buffer, cursor_range: CursorRange) -> Self {
         Self {
-            text_buffer: text_buffer.into(),
-            cursor_range: cursor_range.into(),
+            text_buffer,
+            cursor_range,
         }
     }
 
@@ -46,7 +46,7 @@ where
             },
             Transaction::DeleteBackward => match self.cursor_range.is_empty() {
                 true => {
-                    let CursorRange { anchor, head } = self.cursor_range;
+                    let CursorRange { anchor: _, head } = self.cursor_range;
 
                     let cursor = self.text_buffer.cursor(self.cursor_range)?;
 

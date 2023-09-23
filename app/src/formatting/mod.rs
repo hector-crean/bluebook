@@ -1,6 +1,6 @@
 pub mod citation;
 
-use std::default;
+
 
 pub use citation::Citation;
 use egui::{Align, Color32, FontId, Stroke, TextFormat};

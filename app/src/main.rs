@@ -1,24 +1,22 @@
 use bluebook_app::{
-    easy_mark_editor::{self, EasyMarkEditor},
-    formatting::Formatting,
     widgets::rich_text_editor::view::{editor_ui, egui_transact_fn, EguiTextEditor, EguiViewCtx},
 };
-use bluebook_core::text_buffer::TextBuffer;
+
 use bluebook_core::{
     buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange},
     ctx::TextEditorContext,
     editor::TextEditor,
 };
 use eframe::{self, egui};
-use egui::{epaint::text::cursor::Cursor, Align2, Id, ScrollArea, Vec2, Widget};
-use peritext::Style;
-use serde_json::json;
-use string_cache::Atom;
+use egui::{Align2, Id, ScrollArea, Vec2, Widget};
+
+
+
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
-use std::sync::Mutex;
-use tracing::{span, Level};
-use tracing_subscriber::{prelude::*, registry::Registry, Layer};
+
+use tracing::{Level};
+use tracing_subscriber::{prelude::*};
 
 // #[derive(serde::Deserialize, serde::Serialize)]
 struct TextEditApp {
@@ -26,7 +24,7 @@ struct TextEditApp {
 }
 
 impl TextEditApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use

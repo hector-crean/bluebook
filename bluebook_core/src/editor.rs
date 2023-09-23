@@ -1,11 +1,10 @@
 use crate::ctx::TextEditorContext;
 use crate::expr::Expr;
-use crate::text_buffer_cursor::{CursorDocCoords, TextBufferCursor};
+
 use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
-    error::TextBufferWithCursorError, text_buffer::TextBuffer,
+    command::Transaction, text_buffer::TextBuffer,
 };
-use serde::{Deserialize, Serialize};
+
 
 pub struct TextEditor<Buf: TextBuffer, EventRep, ViewCtx> {
     pub edit_ctx: TextEditorContext<Buf>,

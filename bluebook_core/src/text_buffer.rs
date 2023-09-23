@@ -1,15 +1,13 @@
-use unicode_segmentation::GraphemeIncomplete;
+
 
 use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange, error::TextBufferWithCursorError,
-    graphemes::UnicodeSegmentationError, span::Span, text_buffer_cursor::CursorDocCoords,
+    buffer::peritext_buffer::cursor_impl::CursorRange, error::TextBufferWithCursorError, span::Span, text_buffer_cursor::CursorDocCoords,
 };
 
 use super::text_buffer_cursor::TextBufferCursor;
 
 use std::{
     borrow::Cow,
-    fmt::Debug,
     ops::{Range, RangeBounds},
 };
 

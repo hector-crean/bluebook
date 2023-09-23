@@ -3,11 +3,11 @@ use std::borrow::Cow;
 // use unicode_segmentation::Graphemes;
 
 // use super::grapheme::Graphemes;
-use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete, Graphemes, UnicodeSegmentation};
+use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 
-use crate::error::TextBufferWithCursorError;
-use crate::line::LineWithEnding;
-use crate::text_buffer_cursor::{CursorDocCoords, TextBufferCursor};
+
+
+use crate::text_buffer_cursor::{TextBufferCursor};
 
 use crate::movement::Direction;
 
@@ -109,34 +109,34 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
         let s = self.buffer.as_ref();
 
-        let g = UnicodeSegmentation::graphemes(s, false);
+        let _g = UnicodeSegmentation::graphemes(s, false);
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
         gc.is_boundary(s, 0)
-            .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))
+            .map_err(UnicodeSegmentationError::GraphemeIncompleteError)
     }
 
     fn next_grapheme_boundary(&self) -> Result<Option<usize>, UnicodeSegmentationError> {
         let s = self.buffer.as_ref();
 
-        let g = UnicodeSegmentation::graphemes(s, false);
+        let _g = UnicodeSegmentation::graphemes(s, false);
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
         gc.next_boundary(s, 0)
-            .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))
+            .map_err(UnicodeSegmentationError::GraphemeIncompleteError)
     }
 
     fn prev_grapheme_boundary(&self) -> Result<Option<usize>, UnicodeSegmentationError> {
         let s = self.buffer.as_ref();
 
-        let g = UnicodeSegmentation::graphemes(s, false);
+        let _g = UnicodeSegmentation::graphemes(s, false);
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
         gc.prev_boundary(s, 0)
-            .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))
+            .map_err(UnicodeSegmentationError::GraphemeIncompleteError)
     }
 
     fn nth_next_grapheme_boundary(
@@ -147,10 +147,10 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
-        for i in 0..n {
+        for _i in 0..n {
             let next_byte_offset = gc
                 .next_boundary(s, 0)
-                .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))?;
+                .map_err(UnicodeSegmentationError::GraphemeIncompleteError)?;
 
             match next_byte_offset {
                 Some(next_byte_offset) => {
@@ -174,10 +174,10 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
-        for i in 0..n {
+        for _i in 0..n {
             let prev_byte_offset = gc
                 .prev_boundary(s, 0)
-                .map_err(|err| UnicodeSegmentationError::GraphemeIncompleteError(err))?;
+                .map_err(UnicodeSegmentationError::GraphemeIncompleteError)?;
 
             match prev_byte_offset {
                 Some(prev_byte_offset) => {

@@ -1,29 +1,27 @@
 use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut, Range},
+    ops::{Deref, DerefMut},
     sync::Arc,
 };
 
 use bluebook_core::{
-    buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange},
+    buffer::peritext_buffer::{cursor_impl::CursorRange},
     command::Transaction,
     ctx::TextEditorContext,
     editor::TextEditor,
-    movement::{Direction, Movement},
     span::Span,
     text_buffer::TextBuffer,
-    text_buffer_cursor::{CursorDocCoords, TextBufferCursor},
+    text_buffer_cursor::{CursorDocCoords},
 };
 use egui::{
-    epaint::text::{cursor::Cursor, Row, TextWrapping},
-    text::{CCursor, LayoutJob, LayoutSection},
-    vec2, Align, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, Key, Margin,
-    NumExt, Painter, Pos2, Rect, Response, ScrollArea, Sense, TextFormat, Ui, Vec2,
+    epaint::text::{Row, TextWrapping},
+    text::{LayoutJob},
+    vec2, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, Key,
+    NumExt, Pos2, Rect, Sense, Ui, Vec2,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use string_cache::Atom;
-use tracing::info;
+
+
+
+
 
 use crate::formatting::{Formatting, TextFormatBuilder};
 
@@ -68,21 +66,23 @@ pub fn editor_ui<'ctx, Buffer: TextBuffer + 'ctx>(
     move |ui: &mut egui::Ui| text_edtitor.editor_ui(ui)
 }
 
-pub fn egui_transact_fn<'ctx, Buf: TextBuffer>(
-    ctx: &'ctx TextEditorContext<Buf>,
+pub fn egui_transact_fn<Buf: TextBuffer>(
+    _ctx: &TextEditorContext<Buf>,
     event: &Event,
 ) -> Option<Transaction> {
-    let transaction = match event {
+    
+
+    match event {
         Event::Copy => None,
-        Event::CompositionEnd(c) => None,
-        Event::CompositionUpdate(c) => None,
+        Event::CompositionEnd(_c) => None,
+        Event::CompositionUpdate(_c) => None,
         Event::CompositionStart => None,
         Event::Cut => None,
         Event::Key {
             key,
             pressed,
-            repeat,
-            modifiers,
+            repeat: _,
+            modifiers: _,
         } => match (key, pressed) {
             (Key::Backspace, true) => Some(Transaction::DeleteBackward),
             (Key::Enter, true) => Some(Transaction::InsertNewLine),
@@ -92,27 +92,25 @@ pub fn egui_transact_fn<'ctx, Buf: TextBuffer>(
             _ => None,
         },
         Event::MouseWheel {
-            unit,
-            delta,
-            modifiers,
+            unit: _,
+            delta: _,
+            modifiers: _,
         } => None,
         Event::Paste(s) => Some(Transaction::Paste {
             clipboard: s.clone(),
         }),
         Event::PointerButton {
-            pos,
-            button,
-            pressed,
-            modifiers,
+            pos: _,
+            button: _,
+            pressed: _,
+            modifiers: _,
         } => None,
         Event::PointerGone => None,
-        Event::PointerMoved(c) => None,
+        Event::PointerMoved(_c) => None,
         Event::Text(s) => Some(Transaction::InsertAtCursorHead { value: s.into() }),
 
         _ => None,
-    };
-
-    transaction
+    }
 }
 
 impl<'ctx, Buffer> EguiTextEditor<Buffer>
@@ -168,7 +166,7 @@ where
         response
     }
 
-    fn rich_text_layouter(&self, ui: &Ui, max_width: f32) -> Arc<Galley> {
+    fn rich_text_layouter(&self, ui: &Ui, _max_width: f32) -> Arc<Galley> {
         let buffer = self.0.edit_ctx.text_buffer.take();
 
         let mut job = LayoutJob {
@@ -203,12 +201,12 @@ where
             job.append(&insert, 0., bldr.build())
         }
 
-        let galley = ui.fonts(|rdr| rdr.layout_job(job));
-        galley
+        
+        ui.fonts(|rdr| rdr.layout_job(job))
     }
 
     fn row_height(ui: &Ui, font_id: &FontId) -> f32 {
-        ui.fonts(|f| f.row_height(&font_id))
+        ui.fonts(|f| f.row_height(font_id))
     }
 
     fn size(&self, ui: &Ui, galley_size: &Vec2, font_id: &FontId) -> Vec2 {
@@ -223,25 +221,25 @@ where
         } - self.0.view_ctx.margin.x * 2.0;
 
         let desired_width = galley_size.x.max(wrap_width);
-        let row_height = ui.fonts(|f| f.row_height(&font_id));
+        let row_height = ui.fonts(|f| f.row_height(font_id));
         let desired_height = 4.0 * row_height;
 
-        let desired_size = Vec2::new(desired_width, galley_size.y.max(desired_height))
-            .at_least(Vec2::ZERO - self.0.view_ctx.margin * 2.0);
+        
 
-        desired_size
+        Vec2::new(desired_width, galley_size.y.max(desired_height))
+            .at_least(Vec2::ZERO - self.0.view_ctx.margin * 2.0)
     }
 
     fn draw_position(&self, size: Vec2, frame: Rect) -> Pos2 {
-        let text_draw_pos = self
+        
+
+        self
             .0
             .view_ctx
             .align
             .align_size_within_rect(size, frame)
             .intersect(frame) // limit pos to the response rect area
-            .min;
-
-        text_draw_pos
+            .min
     }
 
     pub fn cursor_rect(
@@ -276,7 +274,7 @@ where
 
         let screen_x = galley_row.x_offset(col);
 
-        let row_height = ui.fonts(|f| f.row_height(&font_id));
+        let row_height = ui.fonts(|f| f.row_height(font_id));
 
         let cursor_rect = Rect::from_min_max(
             draw_position + vec2(screen_x, galley_row.min_y()),

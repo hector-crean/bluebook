@@ -1,6 +1,6 @@
-use std::{ops::Add, sync::Arc};
+use std::{sync::Arc};
 
-use bluebook_core::buffer::peritext_buffer::cursor_impl::CursorRange;
+
 use egui::{Color32, Galley, Painter, Pos2, Rect};
 
 pub struct Draw<'painter> {
