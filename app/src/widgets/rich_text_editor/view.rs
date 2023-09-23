@@ -4,24 +4,16 @@ use std::{
 };
 
 use bluebook_core::{
-    buffer::peritext_buffer::{cursor_impl::CursorRange},
-    command::Transaction,
-    ctx::TextEditorContext,
-    editor::TextEditor,
-    span::Span,
-    text_buffer::TextBuffer,
-    text_buffer_cursor::{CursorDocCoords},
+    buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
+    ctx::TextEditorContext, editor::TextEditor, span::Span, text_buffer::TextBuffer,
+    text_buffer_cursor::CursorDocCoords,
 };
 use egui::{
     epaint::text::{Row, TextWrapping},
-    text::{LayoutJob},
-    vec2, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, Key,
-    NumExt, Pos2, Rect, Sense, Ui, Vec2,
+    text::LayoutJob,
+    vec2, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, Key, NumExt, Pos2,
+    Rect, Sense, Ui, Vec2,
 };
-
-
-
-
 
 use crate::formatting::{Formatting, TextFormatBuilder};
 
@@ -70,8 +62,6 @@ pub fn egui_transact_fn<Buf: TextBuffer>(
     _ctx: &TextEditorContext<Buf>,
     event: &Event,
 ) -> Option<Transaction> {
-    
-
     match event {
         Event::Copy => None,
         Event::CompositionEnd(_c) => None,
@@ -201,7 +191,6 @@ where
             job.append(&insert, 0., bldr.build())
         }
 
-        
         ui.fonts(|rdr| rdr.layout_job(job))
     }
 
@@ -224,17 +213,12 @@ where
         let row_height = ui.fonts(|f| f.row_height(font_id));
         let desired_height = 4.0 * row_height;
 
-        
-
         Vec2::new(desired_width, galley_size.y.max(desired_height))
             .at_least(Vec2::ZERO - self.0.view_ctx.margin * 2.0)
     }
 
     fn draw_position(&self, size: Vec2, frame: Rect) -> Pos2 {
-        
-
-        self
-            .0
+        self.0
             .view_ctx
             .align
             .align_size_within_rect(size, frame)
@@ -255,22 +239,26 @@ where
             .text_buffer
             .cursor_coords(self.0.edit_ctx.cursor_range)?;
 
-        fn is_row_wrapped(row: &Row) -> bool {
-            !row.ends_with_newline
-        }
+        // fn is_row_wrapped(row: &Row) -> bool {
+        //     !row.ends_with_newline
+        // }
 
-        let prev_wrapped_row_count = {
-            galley
-                .rows
-                .iter()
-                .take(row)
-                .filter(|row| is_row_wrapped(row))
-                .count()
+        // let prev_wrapped_row_count = galley
+        //     .rows
+        //     .iter()
+        //     .take(row)
+        //     .filter(|row| is_row_wrapped(row))
+        //     .count();
+
+        // tracing::info!("{:?}", prev_wrapped_row_count);
+
+        let galley_row = match &galley.rows.get(row) {
+            Some(row) => row,
+            None => match galley.rows.last() {
+                Some(last) => last,
+                None => &galley.rows[0],
+            },
         };
-
-        tracing::info!("{:?}", prev_wrapped_row_count);
-
-        let galley_row = &galley.rows[row + prev_wrapped_row_count];
 
         let screen_x = galley_row.x_offset(col);
 

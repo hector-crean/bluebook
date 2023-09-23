@@ -1,5 +1,3 @@
-
-
 use crate::{
     buffer::peritext_buffer::cursor_impl::CursorRange, graphemes::UnicodeSegmentationError,
 };
@@ -9,7 +7,7 @@ use crate::{
 
 /// Zero indexed cursor coordinates
 /// Dinstinguish between 'document' and 'view' coordunates. i.e. the rendered position will not always be the same as the actual position
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CursorDocCoords {
     pub row: usize,
     pub col: usize,

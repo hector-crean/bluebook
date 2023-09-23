@@ -3,11 +3,9 @@ use std::borrow::Cow;
 // use unicode_segmentation::Graphemes;
 
 // use super::grapheme::Graphemes;
-use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
+use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete, UnicodeSegmentation};
 
-
-
-use crate::text_buffer_cursor::{TextBufferCursor};
+use crate::text_buffer_cursor::TextBufferCursor;
 
 use crate::movement::Direction;
 
@@ -109,8 +107,6 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
         let s = self.buffer.as_ref();
 
-        let _g = UnicodeSegmentation::graphemes(s, false);
-
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
         gc.is_boundary(s, 0)
@@ -120,8 +116,6 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
     fn next_grapheme_boundary(&self) -> Result<Option<usize>, UnicodeSegmentationError> {
         let s = self.buffer.as_ref();
 
-        let _g = UnicodeSegmentation::graphemes(s, false);
-
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
         gc.next_boundary(s, 0)
@@ -130,8 +124,6 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
     fn prev_grapheme_boundary(&self) -> Result<Option<usize>, UnicodeSegmentationError> {
         let s = self.buffer.as_ref();
-
-        let _g = UnicodeSegmentation::graphemes(s, false);
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
@@ -147,7 +139,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
-        for _i in 0..n {
+        for _ in 0..n {
             let next_byte_offset = gc
                 .next_boundary(s, 0)
                 .map_err(UnicodeSegmentationError::GraphemeIncompleteError)?;
@@ -174,7 +166,7 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
         let mut gc = GraphemeCursor::new(self.head(), s.len(), false);
 
-        for _i in 0..n {
+        for _ in 0..n {
             let prev_byte_offset = gc
                 .prev_boundary(s, 0)
                 .map_err(UnicodeSegmentationError::GraphemeIncompleteError)?;
@@ -192,20 +184,6 @@ impl<'cursor> TextBufferCursor<'cursor> for PeritextCursor<'cursor> {
 
         Ok(Some(gc.cur_cursor()))
     }
-
-    // fn move_head_horizontally(self, dir: Direction, count: usize, behaviour: Movement) -> Self {
-    //     let head_byte_offset = match dir {
-    //         Direction::Forward => self.nth_next_grapheme_boundary(count),
-    //         Direction::Backward => self.nth_prev_grapheme_boundary(count),
-    //     };
-
-    //     let cursor = match head_byte_offset {
-    //         Some(head_byte_offset) => self.set_head(head_byte_offset),
-    //         None => self,
-    //     };
-
-    //     cursor
-    // }
 }
 
 pub fn len_utf8_from_first_byte(b: u8) -> usize {
@@ -342,4 +320,51 @@ impl CursorRange {
     }
 
     // groupAt
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        buffer::peritext_buffer::buffer_impl::Peritext, error::TextBufferWithCursorError,
+        text_buffer::TextBuffer, text_buffer_cursor::CursorDocCoords,
+    };
+
+    use super::*;
+
+    const TEXT: &str = &"Hello \nworld\n\n";
+    const EMOJI: &str = "😀👋🌍";
+    const COMPLEX_EMOJI: &str = "👨‍👩‍👧‍👦";
+
+    fn peritext_buffer(s: &str) -> Peritext {
+        let mut buffer = Peritext::new(1);
+        let _ = buffer.write(0, s);
+
+        buffer
+    }
+
+    #[test]
+    fn test_cursor_coords_single_line() -> Result<(), TextBufferWithCursorError> {
+        let mut buf = peritext_buffer(TEXT);
+
+        let c = CursorRange { anchor: 7, head: 7 };
+        let doc_coords = buf.cursor_coords(c)?;
+
+        assert_eq!(doc_coords, CursorDocCoords::new(0, 7));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_cursor_coords_multiple_lines_middle() {}
+
+    #[test]
+    fn test_cursor_coords_multiple_lines_end() {}
+
+    #[test]
+    fn test_cursor_coords_at_start() {}
+
+    #[test]
+    fn test_cursor_coords_past_end() {}
+
+    // Add more test cases as needed
 }

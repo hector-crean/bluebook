@@ -1,8 +1,8 @@
 use super::cursor_impl::{CursorRange, PeritextCursor};
 use crate::error::TextBufferWithCursorError;
-use crate::line::LineWithEnding;
 use crate::text_buffer_cursor::{CursorDocCoords, TextBufferCursor};
 use crate::{span::Span, text_buffer::TextBuffer};
+use std::ops::Bound;
 use std::{
     borrow::Cow,
     ops::{Range, RangeBounds},
@@ -31,6 +31,22 @@ impl Peritext {
             inner: RichTextInner::new(client_id),
         }
     }
+
+    fn convert_range<R: RangeBounds<usize>>(&self, range: R) -> (usize, usize) {
+        let start = match range.start_bound() {
+            Bound::Included(&start) => start,
+            Bound::Excluded(&start) => start + 1,
+            Bound::Unbounded => 0,
+        };
+
+        let end = match range.end_bound() {
+            Bound::Included(&end) => end + 1,
+            Bound::Excluded(&end) => end,
+            Bound::Unbounded => self.inner.len(),
+        };
+
+        (start, end)
+    }
 }
 
 impl TextBuffer for Peritext {
@@ -47,8 +63,7 @@ impl TextBuffer for Peritext {
             cursor_range,
         };
 
-        let _is_boundary = new_cursor.is_grapheme_boundary()?;
-
+        let is_boundary = new_cursor.is_grapheme_boundary()?;
         Ok(new_cursor)
     }
 
@@ -56,31 +71,43 @@ impl TextBuffer for Peritext {
         &mut self,
         cursor_range: CursorRange,
     ) -> Result<CursorDocCoords, TextBufferWithCursorError> {
-        let buf = self.inner.to_string().clone();
+        let buf = &self.inner.slice_str(.., IndexType::Utf8);
 
         tracing::info!("{:?}", buf);
 
-        let line_iter = LineWithEnding::new(&buf[0..cursor_range.head]);
+        // If the cursor's position exceeds the buffer, return an error.
+        if cursor_range.head > buf.len() {
+            return Err(TextBufferWithCursorError::OutOfBounds); // Assuming you have such an error variant
+        }
 
-        let mut byte_offset: usize = 0;
+        let mut line_start_byte_offset: usize = 0;
         let mut row: usize = 0;
         let mut col: usize = 0;
 
-        for (line_idx, line) in line_iter.enumerate() {
-            let g = UnicodeSegmentation::graphemes(&buf[byte_offset..cursor_range.head], true);
+        for (line_idx, line) in buf.lines().enumerate() {
+            // Check if the end of the line exceeds the cursor's position
+
+            // if line_start_byte_offset < cursor_range.head
+            //     && cursor_range.head < line_start_byte_offset + line.len()
+            // {
+            let g = UnicodeSegmentation::graphemes(
+                &buf[line_start_byte_offset..cursor_range.head],
+                true,
+            );
 
             col = g.collect::<Vec<&str>>().len();
 
-            byte_offset += line.len();
-
+            // break;
+            // }
             row = line_idx;
+            line_start_byte_offset += line.len();
+        }
 
-            // let newline_count = line.chars().filter(|&c| c == '\n').count();
-            // row += newline_count;
+        if buf.ends_with("\n") {
+            row += 1;
         }
 
         let coords = CursorDocCoords::new(row, col);
-
         tracing::info!("coords: {:?}", coords);
 
         Ok(coords)
@@ -99,7 +126,7 @@ impl TextBuffer for Peritext {
     }
 
     fn write(&mut self, offset: usize, s: &str) -> Result<usize, TextBufferWithCursorError> {
-        self.inner.insert_utf16(offset, s);
+        self.inner.insert(offset, s);
 
         Ok(offset + s.len())
     }
@@ -108,17 +135,7 @@ impl TextBuffer for Peritext {
     where
         R: RangeBounds<usize>,
     {
-        let start = match range.start_bound() {
-            std::ops::Bound::Included(&start) => start,
-            std::ops::Bound::Excluded(&start) => start + 1,
-            std::ops::Bound::Unbounded => 0,
-        };
-
-        let end = match range.end_bound() {
-            std::ops::Bound::Included(&end) => end + 1,
-            std::ops::Bound::Excluded(&end) => end,
-            std::ops::Bound::Unbounded => self.inner.len(), // Assuming inner is a collection with a len() method
-        };
+        let (start, end) = self.convert_range(range);
 
         self.inner.delete(start..end);
 
@@ -135,20 +152,10 @@ impl TextBuffer for Peritext {
     where
         R: RangeBounds<usize>,
     {
-        let start = match range.start_bound() {
-            std::ops::Bound::Included(&start) => start,
-            std::ops::Bound::Excluded(&start) => start + 1,
-            std::ops::Bound::Unbounded => 0,
-        };
-
-        let end = match range.end_bound() {
-            std::ops::Bound::Included(&end) => end + 1,
-            std::ops::Bound::Excluded(&end) => end,
-            std::ops::Bound::Unbounded => self.inner.len(), // Assuming inner is a collection with a len() method
-        };
+        let (start, end) = self.convert_range(range);
 
         self.inner.delete(start..end);
-        self.inner.insert_utf16(start, replace_with);
+        self.inner.insert(start, replace_with);
 
         Ok(Range {
             start,

@@ -1,6 +1,3 @@
-
-
-
 use crate::error::TextBufferWithCursorError;
 use crate::text_buffer_cursor::TextBufferCursor;
 use crate::{
@@ -79,7 +76,7 @@ where
             }
 
             Transaction::InsertNewLine => {
-                let newline = &'\n'.to_string();
+                let newline = &"\n".to_string();
                 let CursorRange { head, .. } = self.cursor_range;
                 let byte_idx = self.text_buffer.write(head, newline)?;
                 self.cursor_range.set_point(byte_idx);
