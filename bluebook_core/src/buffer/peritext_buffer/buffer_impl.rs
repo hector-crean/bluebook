@@ -67,41 +67,73 @@ impl TextBuffer for Peritext {
         Ok(new_cursor)
     }
 
+    /**
+     * Our cursor
+     */
+
     fn cursor_coords(
         &mut self,
         cursor_range: CursorRange,
     ) -> Result<CursorDocCoords, TextBufferWithCursorError> {
-        let buf = &self.inner.slice_str(.., IndexType::Utf8);
+        let buf = &self.inner.slice_str(0..cursor_range.head, IndexType::Utf8);
+
+        let mut row = buf.chars().filter(|&c| c == '\n').count();
+        let mut col: usize = 0;
+
+        fn find_last_newline_position(s: &str) -> Option<usize> {
+            for (i, c) in s.char_indices().rev() {
+                if c == '\n' {
+                    return Some(i);
+                }
+            }
+            None
+        }
+
+        let newline_idx = find_last_newline_position(&buf);
+
+        match newline_idx {
+            Some(newline_idx) => {
+                let g = UnicodeSegmentation::graphemes(&buf[newline_idx..cursor_range.head], true);
+
+                col = g.collect::<Vec<&str>>().len();
+            }
+            None => {}
+        }
 
         tracing::info!("{:?}", buf);
 
-        // If the cursor's position exceeds the buffer, return an error.
-        if cursor_range.head > buf.len() {
-            return Err(TextBufferWithCursorError::OutOfBounds); // Assuming you have such an error variant
-        }
+        // // If the cursor's position exceeds the buffer, return an error.
+        // if cursor_range.head > buf.len() {
+        //     return Err(TextBufferWithCursorError::OutOfBounds); // Assuming you have such an error variant
+        // }
 
-        let mut line_start_byte_offset: usize = 0;
-        let mut row: usize = 0;
-        let mut col: usize = 0;
+        // let mut line_start_byte_offset: usize = 0;
+        // let mut row: usize = 0;
+        // let mut col: usize = 0;
 
-        for (line_idx, line) in buf.lines().enumerate() {
-            // Check if the end of the line exceeds the cursor's position
+        // for (line_idx, line) in buf.lines().enumerate() {
+        //     let newline_char = '\n'.to_string();
+        //     tracing::info!(
+        //         "{:?} <  {:?} < {:?} ",
+        //         line_start_byte_offset,
+        //         cursor_range.head,
+        //         line_start_byte_offset + line.len() + line_idx * &newline_char.len()
+        //     );
 
-            // if line_start_byte_offset < cursor_range.head
-            //     && cursor_range.head < line_start_byte_offset + line.len()
-            // {
-            let g = UnicodeSegmentation::graphemes(
-                &buf[line_start_byte_offset..cursor_range.head],
-                true,
-            );
+        //     if line_start_byte_offset <= cursor_range.head
+        //         && cursor_range.head
+        //             <= line_start_byte_offset + line.len() + line_idx * &newline_char.len()
+        //     {
+        //         let g = UnicodeSegmentation::graphemes(
+        //             &buf[line_start_byte_offset..cursor_range.head],
+        //             true,
+        //         );
 
-            col = g.collect::<Vec<&str>>().len();
-
-            // break;
-            // }
-            row = line_idx;
-            line_start_byte_offset += line.len();
-        }
+        //         col = g.collect::<Vec<&str>>().len();
+        //     }
+        //     row = line_idx;
+        //     line_start_byte_offset += line.len();
+        // }
 
         if buf.ends_with("\n") {
             row += 1;
