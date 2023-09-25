@@ -1,9 +1,9 @@
-use crate::graphemes::UnicodeSegmentationError;
+use crate::text_buffer;
 
 #[derive(thiserror::Error, Debug)]
-pub enum TextBufferWithCursorError {
+pub enum BluebookCoreError {
     #[error(transparent)]
-    UnicodeSegmentationError(#[from] UnicodeSegmentationError),
-    #[error("Out of bounds")]
-    OutOfBounds,
+    CursorError(#[from] text_buffer::CursorError),
+    #[error(transparent)]
+    ConversionError(#[from] text_buffer::ConversionError),
 }

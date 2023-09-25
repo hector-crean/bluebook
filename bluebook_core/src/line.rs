@@ -1,6 +1,4 @@
-
-
-use crate::text_buffer::{TextBuffer};
+use crate::text_buffer::TextBuffer;
 
 #[cfg(target_os = "windows")]
 pub const NATIVE_LINE_ENDING: LineEnding = LineEnding::Crlf;
@@ -119,4 +117,16 @@ impl LineEnding {
 #[inline]
 pub fn str_is_line_ending(s: &str) -> bool {
     LineEnding::from_str(s).is_some()
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum LineCursorError {
+    #[error("Invalid character encountered")]
+    InvalidCharacter,
+    // Add more error variants as needed
+}
+
+pub trait LineCursor<'buffer> {
+    type Buffer: TextBuffer;
+    fn new(text: &'buffer Self::Buffer, pos: usize) -> Self;
 }

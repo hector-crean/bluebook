@@ -2,18 +2,13 @@ pub mod interval_tree;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{
-    collections::{HashMap},
-    ops::Range,
-};
+use std::{collections::HashMap, ops::Range};
 use string_cache::DefaultAtom;
 
 use fxhash::FxHasher;
 use std::hash::BuildHasherDefault;
 
-
-
-
+use crate::text_buffer::TextBuffer;
 
 /// The annotated text span.
 
@@ -33,14 +28,23 @@ pub enum Behavior {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Annotation {
+pub struct Span {
     pub range: Range<usize>,
     pub behavior: Behavior,
     pub type_: DefaultAtom,
     pub value: Value,
 }
 
-pub trait SpanIterable {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpanIterItem<'s> {
+    // pub range: Range<usize>,
+    pub slice: &'s str,
+    pub attributes: FxHashMap<DefaultAtom, Value>,
+}
+
+pub trait SpanIterable<'buffer, 's> {
+    type Buffer: TextBuffer;
+
     /// Apply a given formatting to the specified range of text.
     // fn apply_annotation(&mut self, annotation: Annotation);
 
@@ -48,7 +52,7 @@ pub trait SpanIterable {
     // fn spans_at(&self, position: usize) -> HashMap<DefaultAtom, Value>;
 
     /// Get the formattings applied to the text within the given range.
-    fn spans<Drain: Iterator<Item = Span>>(&self, range: Range<usize>) -> Drain;
+    fn spans<Drain: Iterator<Item = SpanIterItem<'s>>>(&self, range: Range<usize>) -> Drain;
 }
 
 /// A builder for default Fx hashers.
@@ -56,57 +60,3 @@ pub type FxBuildHasher = BuildHasherDefault<FxHasher>;
 
 /// A `HashMap` using a default Fx hasher.
 pub type FxHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Span {
-    // pub range: Range<usize>,
-    pub insert: String,
-    pub attributes: FxHashMap<DefaultAtom, Value>,
-}
-
-// pub struct SpansIterator<'a, Buffer: TextBuffer> {
-//     buffer: &'a Buffer,
-//     span_tree: IntervalTree<usize, HashMap<DefaultAtom, Value>>,
-//     boundaries: Vec<usize>,
-//     cursor: usize,
-// }
-
-// impl<'a, Buffer: TextBuffer> SpansIterator<'a, Buffer> {
-//     fn new(
-//         buffer: &'a Buffer,
-//         span_tree: IntervalTree<usize, HashMap<DefaultAtom, Value>>,
-//     ) -> Self {
-//         let mut boundaries = BTreeSet::new();
-
-//         for Range { start, end } in spans.iter().map(|span| span.range) {
-//             boundaries.insert(start);
-//             boundaries.insert(end);
-//         }
-
-//         Self {
-//             boundaries: boundaries.into_iter().collect(),
-//             cursor: 0,
-//             buffer,
-//             span_tree,
-//         }
-//     }
-// }
-
-// impl<'a, Buffer: TextBuffer> Iterator for SpansIterator<'a, Buffer> {
-//     type Item = &'a [HashMap<DefaultAtom, Value>];
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.boundaries.len() <= self.cursor {
-//             return None;
-//         };
-
-//         let start = self.boundaries[self.cursor];
-//         let end = self.boundaries[self.cursor + 1];
-
-//         let query = self.span_tree.query(start..end);
-
-//         let items = query.map(|x| x.value).collect();
-
-//         return Some(items);
-//     }
-// }

@@ -1,6 +1,7 @@
+use std::fmt::Write;
+
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
-use std::fmt::Write;
 use tracing::warn;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -11,10 +12,14 @@ pub enum MotionMode {
     Outdent,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum CursorMode {
-    Normal(usize),
-    // Insert(Selection),
+#[derive(
+    Clone, PartialEq, Eq, Hash, Debug, Copy, Deserialize, Serialize, Default,
+)]
+pub enum VisualMode {
+    #[default]
+    Normal,
+    Linewise,
+    Blockwise,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy, PartialOrd, Ord)]
