@@ -1,10 +1,14 @@
+use xi_rope::rope::ChunkIter;
+
 use crate::{
     block::{BlockCursor, BlockCursorError},
-    codepoint::{CodepointCursor, CodepointCursorError},
+    codepoint::{CharIndicesJoin, CodepointCursor, CodepointCursorError},
     coordinates::{ColPosition, RowPosition},
+    encoding,
     graphemes::{GraphemeCursor, GraphemeCursorError},
     line::{LineCursor, LineCursorError},
     paragraph::{ParagraphCursor, ParagraphCursorError},
+    position::Position,
     sentence::{SentenceCursor, SentenceCursorError},
     span::{Span, SpanData},
     word::{WordCursor, WordCursorError},
@@ -130,7 +134,7 @@ pub trait TextBuffer {
     //Quite crucial: we will implemenet default implementation to most of the traits for string slices.
     fn from_str(s: &str) -> Self;
     /// Construct an instance of this type from a `&str`.
-    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, ConversionError>;
+    fn slice(&self, range: Range<usize>) -> Cow<str>;
 
     fn write(&mut self, offset: usize, s: &str) -> Result<usize, GraphemeCursorError>;
 
@@ -155,6 +159,85 @@ pub trait TextBuffer {
 
     /// Returns `true` if this text has 0 length.
     fn is_empty(&self) -> bool;
+
+    fn line_of_offset(&self, offset: usize) -> usize;
+    fn offset_of_line(&self, line: usize) -> usize;
+    fn offset_to_position(&self, offset: usize) -> Position;
+    fn offset_of_position(&self, pos: &Position) -> usize;
+    fn position_to_line_col(&self, pos: &Position) -> (usize, usize);
+
+    fn line_content(&self, line: usize) -> Cow<'_, str> {
+        self.slice(self.offset_of_line(line)..self.offset_of_line(line + 1))
+    }
+
+    /// The last line of the held rope
+    fn last_line(&self) -> usize {
+        self.line_of_offset(self.len())
+    }
+
+    fn offset_line_end(
+        &mut self,
+        offset: usize,
+        caret: bool,
+    ) -> Result<usize, GraphemeCursorError> {
+        let line = self.line_of_offset(offset);
+        self.line_end_offset(line, caret)
+    }
+
+    fn offset_to_line_col(&self, offset: usize) -> (usize, usize) {
+        let offset: usize = offset.min(self.len());
+        let line = self.line_of_offset(offset);
+        let line_start = self.offset_of_line(line);
+        if offset == line_start {
+            return (line, 0);
+        }
+
+        let col = offset - line_start;
+        (line, col)
+    }
+
+    fn offset_of_line_col(&self, line: usize, col: usize) -> usize {
+        let mut pos = 0;
+        let mut offset = self.offset_of_line(line);
+        for c in self.slice(offset..self.offset_of_line(line + 1)).chars() {
+            if c == '\n' {
+                return offset;
+            }
+
+            let char_len = c.len_utf8();
+            if pos + char_len > col {
+                return offset;
+            }
+            pos += char_len;
+            offset += char_len;
+        }
+        offset
+    }
+
+    fn line_end_col(&mut self, line: usize, caret: bool) -> Result<usize, GraphemeCursorError> {
+        let line_start = self.offset_of_line(line);
+        let offset = self.line_end_offset(line, caret)?;
+        Ok(offset - line_start)
+    }
+
+    fn line_end_offset(&mut self, line: usize, caret: bool) -> Result<usize, GraphemeCursorError> {
+        let mut offset = self.offset_of_line(line + 1);
+        let mut line_content: &str = &self.line_content(line);
+        if line_content.ends_with("\r\n") {
+            offset -= 2;
+            line_content = &line_content[..line_content.len() - 2];
+        } else if line_content.ends_with('\n') {
+            offset -= 1;
+            line_content = &line_content[..line_content.len() - 1];
+        }
+        if !caret && !line_content.is_empty() {
+            let mut gc = self.grapheme_cursor(offset)?;
+            if let Some(o) = gc.next_back() {
+                offset = o;
+            }
+        }
+        Ok(offset)
+    }
 }
 
 #[cfg(test)]

@@ -4,14 +4,20 @@ use std::{
 };
 
 use bluebook_core::{
-    buffer::peritext_buffer::cursor_impl::CursorRange, buffer::TextBuffer, command::Transaction,
-    ctx::TextEditorContext, editor::TextEditor, span::Span, text_buffer_cursor::CursorDocCoords,
+    buffer::TextBuffer,
+    buffer_impl::rope::word_cursor,
+    command::Transaction,
+    ctx::TextEditorContext,
+    cursor::CursorRange,
+    editor::TextEditor,
+    position::Position,
+    span::{Span, SpanData},
 };
 use egui::{
     epaint::text::{Row, TextWrapping},
     text::LayoutJob,
     vec2, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, Key, NumExt, Pos2,
-    Rect, Sense, Ui, Vec2,
+    Rect, Sense, TextFormat, Ui, Vec2,
 };
 
 use crate::formatting::{Formatting, TextFormatBuilder};
@@ -21,7 +27,7 @@ use super::draw::Draw;
 #[derive(thiserror::Error, Debug)]
 pub enum TextEditorError {
     #[error(transparent)]
-    TextBufferCursorError(#[from] bluebook_core::error::TextBufferWithCursorError),
+    BluebookCoreError(#[from] bluebook_core::error::BluebookCoreError),
 }
 
 pub struct EguiViewCtx {
@@ -155,11 +161,11 @@ where
         response
     }
 
-    fn rich_text_layouter(&self, ui: &Ui, _max_width: f32) -> Arc<Galley> {
-        let buffer = self.0.edit_ctx.text_buffer.take();
+    fn rich_text_layouter(&mut self, ui: &Ui, _max_width: f32) -> Arc<Galley> {
+        let len = self.edit_ctx.text_buffer.len();
+        let s = self.edit_ctx.text_buffer.slice(0..len).to_string();
 
         let mut job = LayoutJob {
-            text: buffer.into(),
             break_on_newline: true,
             wrap: TextWrapping {
                 max_width: f32::INFINITY,
@@ -168,27 +174,29 @@ where
             ..Default::default()
         };
 
-        for span in self.0.edit_ctx.text_buffer.span_iter() {
-            let Span { insert, attributes } = span.into();
+        let bldr = TextFormatBuilder::new();
 
-            let mut bldr = TextFormatBuilder::new();
+        job.append(&s, 0., bldr.build());
 
-            for attribute in attributes.iter() {
-                let formatting: Formatting = attribute.into();
-                match formatting {
-                    Formatting::Italic => {
-                        bldr = bldr.italics(true);
-                    }
-                    Formatting::Bold => bldr = bldr.color(Color32::DARK_RED),
-                    Formatting::Comment(_) => {
-                        bldr = bldr.background(Color32::YELLOW);
-                    }
+        // for span in self.0.edit_ctx.text_buffer.span_iter().into_iter() {
+        //     let Span::<SpanData> { range, data } = span.into();
 
-                    _ => {}
-                }
-            }
-            job.append(&insert, 0., bldr.build())
-        }
+        //     // for attribute in attributes.iter() {
+        //     //     let formatting: Formatting = attribute.into();
+        //     //     match formatting {
+        //     //         Formatting::Italic => {
+        //     //             bldr = bldr.italics(true);
+        //     //         }
+        //     //         Formatting::Bold => bldr = bldr.color(Color32::DARK_RED),
+        //     //         Formatting::Comment(_) => {
+        //     //             bldr = bldr.background(Color32::YELLOW);
+        //     //         }
+
+        //     //         _ => {}
+        //     //     }
+        //     // }
+        //     job.append(&insert, 0., bldr.build())
+        // }
 
         ui.fonts(|rdr| rdr.layout_job(job))
     }
@@ -232,26 +240,17 @@ where
         galley: &Galley,
         draw_position: Pos2,
     ) -> Result<Rect, TextEditorError> {
-        let CursorDocCoords { row, col } = self
-            .0
-            .edit_ctx
-            .text_buffer
-            .cursor_coords(self.0.edit_ctx.cursor_range)?;
+        let TextEditorContext {
+            text_buffer,
+            cursor_range,
+        } = &self.edit_ctx;
 
-        // fn is_row_wrapped(row: &Row) -> bool {
-        //     !row.ends_with_newline
-        // }
+        let Position {
+            line: row,
+            character: col,
+        } = text_buffer.offset_to_position(cursor_range.head);
 
-        // let prev_wrapped_row_count = galley
-        //     .rows
-        //     .iter()
-        //     .take(row)
-        //     .filter(|row| is_row_wrapped(row))
-        //     .count();
-
-        // tracing::info!("{:?}", prev_wrapped_row_count);
-
-        let galley_row = match &galley.rows.get(row) {
+        let galley_row = match &galley.rows.get(row as usize) {
             Some(row) => row,
             None => match galley.rows.last() {
                 Some(last) => last,
@@ -259,7 +258,7 @@ where
             },
         };
 
-        let screen_x = galley_row.x_offset(col);
+        let screen_x = galley_row.x_offset(col as usize);
 
         let row_height = ui.fonts(|f| f.row_height(font_id));
 

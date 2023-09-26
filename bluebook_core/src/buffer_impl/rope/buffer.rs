@@ -1,11 +1,19 @@
-use std::ops::Range;
+use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
+use std::ops::{Range, RangeBounds};
 
+use xi_rope::interval::IntervalBounds;
+use xi_rope::rope::ChunkIter;
+use xi_rope::LinesMetric;
 use xi_rope::{
     spans::{Span, SpanIter},
     Interval, Rope,
 };
 
+use crate::codepoint::CharIndicesJoin;
+use crate::encoding;
+use crate::position::Position;
 use crate::{
     block::BlockCursor, buffer::TextBuffer, codepoint::CodepointCursor, graphemes::GraphemeCursor,
     line::LineCursor, paragraph::ParagraphCursor, sentence::SentenceCursor, span::SpanData,
@@ -28,6 +36,19 @@ impl RopeBuffer {
         Self {
             inner: Rope::from(s),
         }
+    }
+
+    fn char_indices_iter<'a, T: IntervalBounds>(
+        &'a self,
+        range: T,
+    ) -> CharIndicesJoin<
+        std::str::CharIndices<'a>,
+        std::iter::Map<ChunkIter<'a>, fn(&str) -> std::str::CharIndices<'_>>,
+    > {
+        let iter: ChunkIter<'a> = self.iter_chunks(range);
+        let iter: std::iter::Map<ChunkIter<'a>, fn(&str) -> std::str::CharIndices<'_>> =
+            iter.map(str::char_indices);
+        CharIndicesJoin::new(iter)
     }
 }
 
@@ -81,11 +102,8 @@ impl TextBuffer for RopeBuffer {
         }
     }
 
-    fn slice(
-        &self,
-        range: std::ops::Range<usize>,
-    ) -> Result<std::borrow::Cow<str>, crate::buffer::ConversionError> {
-        todo!()
+    fn slice(&self, range: std::ops::Range<usize>) -> Cow<str> {
+        self.inner.slice_to_cow(range)
     }
 
     fn codepoint_cursor(
@@ -149,8 +167,9 @@ impl TextBuffer for RopeBuffer {
         offset: usize,
         s: &str,
     ) -> Result<usize, crate::graphemes::GraphemeCursorError> {
-        self.inner.edit(offset..offset, s);
-        Ok(offset)
+        self.inner.edit(offset..offset + s.len(), s);
+
+        Ok(offset + s.len())
     }
 
     fn drain(&mut self, range: std::ops::Range<usize>) -> std::vec::Drain<&str> {
@@ -186,6 +205,79 @@ impl TextBuffer for RopeBuffer {
 
     fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// Return the line number corresponding to the byte index `offset`.
+    ///
+    /// The line number is 0-based, thus this is equivalent to the count of newlines
+    /// in the slice up to `offset`.
+    ///
+    /// Time complexity: O(log n)
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `offset > self.len()`. Callers are expected to
+    /// validate their input.
+    fn line_of_offset(&self, offset: usize) -> usize {
+        self.count::<LinesMetric>(offset)
+    }
+
+    /// Return the byte offset corresponding to the line number `line`.
+    /// If `line` is equal to one plus the current number of lines,
+    /// this returns the offset of the end of the rope. Arguments higher
+    /// than this will panic.
+    ///
+    /// The line number is 0-based.
+    ///
+    /// Time complexity: O(log n)
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `line > self.measure::<LinesMetric>() + 1`.
+    /// Callers are expected to validate their input.
+    fn offset_of_line(&self, line: usize) -> usize {
+        let max_line = self.measure::<LinesMetric>() + 1;
+        match line.cmp(&max_line) {
+            Ordering::Greater => {
+                panic!("line number {} beyond last line {}", line, max_line);
+            }
+            Ordering::Equal => {
+                return self.len();
+            }
+            Ordering::Less => self.count_base_units::<LinesMetric>(line),
+        }
+    }
+
+    /// Converts a UTF8 offset to a UTF16 LSP position
+    /// Returns None if it is not a valid UTF16 offset
+    fn offset_to_position(&self, offset: usize) -> Position {
+        let (line, col) = self.offset_to_line_col(offset);
+        let line_offset = self.offset_of_line(line);
+
+        let utf16_col = encoding::offset_utf8_to_utf16(self.char_indices_iter(line_offset..), col);
+
+        Position {
+            line: line as u32,
+            character: utf16_col as u32,
+        }
+    }
+
+    fn offset_of_position(&self, pos: &Position) -> usize {
+        let (line, column) = self.position_to_line_col(pos);
+
+        self.offset_of_line_col(line, column)
+    }
+
+    fn position_to_line_col(&self, pos: &Position) -> (usize, usize) {
+        let line = pos.line as usize;
+        let line_offset = self.offset_of_line(line);
+
+        let column = encoding::offset_utf16_to_utf8(
+            self.char_indices_iter(line_offset..),
+            pos.character as usize,
+        );
+
+        (line, column)
     }
 }
 

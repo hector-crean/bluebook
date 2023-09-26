@@ -15,6 +15,7 @@ pub mod line;
 pub mod mode;
 pub mod movement;
 pub mod paragraph;
+pub mod position;
 pub mod sentence;
 pub mod span;
 pub mod word;

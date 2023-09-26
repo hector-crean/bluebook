@@ -45,10 +45,10 @@ where
 
                     let mut gc = self.text_buffer.grapheme_cursor(self.cursor_range.head)?;
 
-                    let offset = if let Some(offset) = gc.nth_back(1) {
+                    let offset = if let Some(offset) = gc.nth_back(0) {
                         offset
                     } else {
-                        return Ok(false);
+                        0
                     };
 
                     drop(gc);
@@ -67,9 +67,12 @@ where
             },
             Transaction::InsertAtCursorHead { value: s } => {
                 let CursorRange { head, .. } = self.cursor_range;
-
                 let byte_idx = self.text_buffer.write(head, &s)?;
+
                 self.cursor_range.set_point(byte_idx);
+
+                tracing::info!("{:?}", self.text_buffer.slice(0..self.text_buffer.len()));
+
                 Ok(true)
             }
             Transaction::Paste { clipboard: s } => Ok(false),

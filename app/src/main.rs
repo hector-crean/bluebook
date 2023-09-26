@@ -1,26 +1,22 @@
-use bluebook_app::{
-    widgets::rich_text_editor::view::{editor_ui, egui_transact_fn, EguiTextEditor, EguiViewCtx},
+use bluebook_app::widgets::rich_text_editor::view::{
+    editor_ui, egui_transact_fn, EguiTextEditor, EguiViewCtx,
 };
 
 use bluebook_core::{
-    buffer::peritext_buffer::{buffer_impl::Peritext, cursor_impl::CursorRange},
-    ctx::TextEditorContext,
+    buffer_impl::rope::buffer::RopeBuffer, ctx::TextEditorContext, cursor::CursorRange,
     editor::TextEditor,
 };
 use eframe::{self, egui};
 use egui::{Align2, Id, ScrollArea, Vec2, Widget};
 
-
-
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
-
-use tracing::{Level};
-use tracing_subscriber::{prelude::*};
+use tracing::Level;
+use tracing_subscriber::prelude::*;
 
 // #[derive(serde::Deserialize, serde::Serialize)]
 struct TextEditApp {
-    editor: EguiTextEditor<Peritext>,
+    editor: EguiTextEditor<RopeBuffer>,
 }
 
 impl TextEditApp {
@@ -30,14 +26,14 @@ impl TextEditApp {
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
 
-        let buf = Peritext::new(1);
+        let buf = RopeBuffer::new("");
         let cursor_range = CursorRange::default();
 
         // println!("{:?}, {:?}", &self.cursor_range, &self.buf.take());
         let edit_ctx = TextEditorContext::new(buf, cursor_range);
         let view_ctx = EguiViewCtx::new(Id::new("text_editor"), Vec2::ZERO, Align2::CENTER_CENTER);
 
-        let editor = TextEditor::<Peritext, egui::Event, EguiViewCtx>::new(
+        let editor = TextEditor::<RopeBuffer, egui::Event, EguiViewCtx>::new(
             edit_ctx,
             egui_transact_fn,
             view_ctx,
@@ -53,7 +49,7 @@ impl TextEditApp {
 
         ScrollArea::vertical()
             .id_source("source")
-            .show(ui, |ui| ui.add(editor_ui::<Peritext>(editor)));
+            .show(ui, |ui| ui.add(editor_ui::<RopeBuffer>(editor)));
     }
 }
 
