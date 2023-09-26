@@ -4,9 +4,8 @@ use std::{
 };
 
 use bluebook_core::{
-    buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
-    ctx::TextEditorContext, editor::TextEditor, span::Span, text_buffer::TextBuffer,
-    text_buffer_cursor::CursorDocCoords,
+    buffer::peritext_buffer::cursor_impl::CursorRange, buffer::TextBuffer, command::Transaction,
+    ctx::TextEditorContext, editor::TextEditor, span::Span, text_buffer_cursor::CursorDocCoords,
 };
 use egui::{
     epaint::text::{Row, TextWrapping},

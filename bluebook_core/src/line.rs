@@ -1,4 +1,4 @@
-use crate::text_buffer::TextBuffer;
+use crate::buffer::TextBuffer;
 
 #[cfg(target_os = "windows")]
 pub const NATIVE_LINE_ENDING: LineEnding = LineEnding::Crlf;
@@ -126,7 +126,8 @@ pub enum LineCursorError {
     // Add more error variants as needed
 }
 
-pub trait LineCursor<'buffer> {
+pub trait LineCursor<'buffer>: Iterator<Item = usize> + DoubleEndedIterator<Item = usize> {
     type Buffer: TextBuffer;
     fn new(text: &'buffer Self::Buffer, pos: usize) -> Self;
+    fn offset(&self) -> usize;
 }

@@ -1,10 +1,7 @@
 use crate::ctx::TextEditorContext;
 use crate::expr::Expr;
 
-use crate::{
-    command::Transaction, text_buffer::TextBuffer,
-};
-
+use crate::{buffer::TextBuffer, command::Transaction};
 
 pub struct TextEditor<Buf: TextBuffer, EventRep, ViewCtx> {
     pub edit_ctx: TextEditorContext<Buf>,

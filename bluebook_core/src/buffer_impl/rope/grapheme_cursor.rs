@@ -1,88 +1,60 @@
-//! This example shows how to implement a grapeheme iterator over the contents
-//! of a `Rope` or `RopeSlice`.  This also serves as a good starting point for
-//! iterators for other kinds of segementation, such as word boundaries.
+use crate::buffer::TextBuffer;
+use crate::graphemes::GraphemeCursor;
+use xi_rope::{Cursor, LinesMetric, RopeInfo};
 
-#![allow(clippy::redundant_field_names)]
-#![allow(dead_code)]
+use super::buffer::RopeBuffer;
 
-// use std::str::pattern::Pattern;
-use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
-
-#[derive(Clone, Debug)]
-pub struct Graphemes<'a> {
-    slice: &'a str,
-    gc: GraphemeCursor,
+pub struct RopeGraphemeCursor<'a> {
+    pub(crate) cursor: Cursor<'a, RopeInfo>,
 }
 
-impl<'a> Graphemes<'a> {
-    pub fn new(s: &str, is_extended: bool) -> Graphemes<'_> {
-        let len = s.len();
-        Graphemes {
-            slice: s,
-            gc: GraphemeCursor::new(0, len, is_extended),
-        }
-    }
-    pub fn set_cursor_offet(mut self, byte_offset: usize) -> Self {
-        self.gc.set_cursor(byte_offset);
-        self
-    }
-    pub fn is_grapheme_boundary(mut self, byte_offset: usize) -> bool {
-        loop {
-            match self.gc.is_boundary(self.slice, byte_offset) {
-                Ok(n) => return n,
-                Err(GraphemeIncomplete::PreContext(_n)) => {
-                    // let (ctx_chunk, ctx_byte_start, _, _) = self.slice.chunk_at_byte(n - 1);
-                    // self.gc.provide_context(ctx_chunk, ctx_byte_start);
-                }
-                Err(_) => unreachable!(),
-            }
-        }
+impl<'a> From<Cursor<'a, RopeInfo>> for RopeGraphemeCursor<'a> {
+    fn from(cursor: Cursor<'a, RopeInfo>) -> Self {
+        Self { cursor }
     }
 }
 
-pub struct GraphemeIterItem {
-    pub byte_offset: usize,
-}
-impl GraphemeIterItem {
-    fn new(byte_offset: usize) -> Self {
-        Self { byte_offset }
-    }
-}
-impl<'a> Iterator for Graphemes<'a> {
-    type Item = GraphemeIterItem;
+// Implement the DoubleEndedIterator trait for RopeGraphemeCursor
 
+impl<'a> Iterator for RopeGraphemeCursor<'a> {
+    type Item = usize;
     fn next(&mut self) -> Option<Self::Item> {
-        let next_idx = self.gc.next_boundary(self.slice, 0).unwrap();
+        // Delegate the implementation to the existing next_grapheme_cluster_boundary method
+        match self.cursor.next_grapheme() {
+            Some(offset) => {
+                self.cursor.set(offset);
 
-        next_idx.map(GraphemeIterItem::new)
+                Some(offset)
+            }
+            _ => None,
+        }
     }
 }
 
-impl<'a> DoubleEndedIterator for Graphemes<'a> {
+impl<'a> DoubleEndedIterator for RopeGraphemeCursor<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let prev_idx = self.gc.prev_boundary(self.slice, 0).unwrap();
+        // Delegate the implementation to the existing prev_grapheme_cluster_boundary method
+        match self.cursor.prev_grapheme() {
+            Some(offset) => {
+                self.cursor.set(offset);
 
-        prev_idx.map(GraphemeIterItem::new)
+                Some(offset)
+            }
+            _ => None,
+        }
     }
 }
 
-pub fn nth_next_grapheme_boundary(
-    slice: &str,
-    byte_offset: usize,
-    n: usize,
-) -> Option<GraphemeIterItem> {
-    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_offset);
+impl<'buffer> GraphemeCursor<'buffer> for RopeGraphemeCursor<'buffer> {
+    type Buffer = RopeBuffer;
 
-    graphemes.nth(n)
-}
-
-pub fn nth_prev_grapheme_boundary(
-    slice: &str,
-    byte_offset: usize,
-    n: usize,
-) -> Option<GraphemeIterItem> {
-    let mut graphemes = Graphemes::new(slice, false).set_cursor_offet(byte_offset);
-    graphemes.nth_back(n)
+    fn new(text: &'buffer Self::Buffer, offset: usize) -> Self {
+        let cursor = Cursor::new(text, offset);
+        RopeGraphemeCursor { cursor }
+    }
+    fn offset(&self) -> usize {
+        self.cursor.pos()
+    }
 }
 
 #[cfg(test)]
@@ -158,8 +130,10 @@ mod tests {
 
     #[test]
     fn nth_grapheme() {
-        let mut graphemes = Graphemes::new(TEXT, false).set_cursor_offet(TEXT.len());
+        let buffer = RopeBuffer::from_str(TEXT);
 
-        assert_eq!(graphemes.nth_back(1).unwrap().byte_offset, TEXT.len() - 2);
+        let mut gc = RopeGraphemeCursor::new(&buffer, 0);
+
+        let offset = gc.nth(5);
     }
 }

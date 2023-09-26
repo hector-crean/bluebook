@@ -1,6 +1,7 @@
 pub mod block;
 pub mod buffer;
-pub mod char;
+pub mod buffer_impl;
+pub mod codepoint;
 pub mod command;
 pub mod coordinates;
 pub mod ctx;
@@ -16,5 +17,4 @@ pub mod movement;
 pub mod paragraph;
 pub mod sentence;
 pub mod span;
-pub mod text_buffer;
 pub mod word;

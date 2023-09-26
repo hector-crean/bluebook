@@ -8,7 +8,7 @@ use string_cache::DefaultAtom;
 use fxhash::FxHasher;
 use std::hash::BuildHasherDefault;
 
-use crate::text_buffer::TextBuffer;
+use crate::buffer::TextBuffer;
 
 /// The annotated text span.
 
@@ -28,35 +28,14 @@ pub enum Behavior {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Span {
-    pub range: Range<usize>,
+pub struct SpanData {
     pub behavior: Behavior,
     pub type_: DefaultAtom,
     pub value: Value,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SpanIterItem<'s> {
-    // pub range: Range<usize>,
-    pub slice: &'s str,
-    pub attributes: FxHashMap<DefaultAtom, Value>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Span<T> {
+    pub range: Range<usize>,
+    pub data: T,
 }
-
-pub trait SpanIterable<'buffer, 's> {
-    type Buffer: TextBuffer;
-
-    /// Apply a given formatting to the specified range of text.
-    // fn apply_annotation(&mut self, annotation: Annotation);
-
-    /// Get the formattings applied to the text at the given position.
-    // fn spans_at(&self, position: usize) -> HashMap<DefaultAtom, Value>;
-
-    /// Get the formattings applied to the text within the given range.
-    fn spans<Drain: Iterator<Item = SpanIterItem<'s>>>(&self, range: Range<usize>) -> Drain;
-}
-
-/// A builder for default Fx hashers.
-pub type FxBuildHasher = BuildHasherDefault<FxHasher>;
-
-/// A `HashMap` using a default Fx hasher.
-pub type FxHashMap<K, V> = HashMap<K, V, FxBuildHasher>;

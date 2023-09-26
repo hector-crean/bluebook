@@ -1,12 +1,12 @@
 use crate::{
     block::{BlockCursor, BlockCursorError},
-    char::{CharCursor, CharCursorError},
+    codepoint::{CodepointCursor, CodepointCursorError},
     coordinates::{ColPosition, RowPosition},
-    graphemes::{GraphemeClusterCursor, GraphemeClusterCursorError},
+    graphemes::{GraphemeCursor, GraphemeCursorError},
     line::{LineCursor, LineCursorError},
     paragraph::{ParagraphCursor, ParagraphCursorError},
     sentence::{SentenceCursor, SentenceCursorError},
-    span::Span,
+    span::{Span, SpanData},
     word::{WordCursor, WordCursorError},
 };
 
@@ -41,34 +41,16 @@ This design effectively locks the TextBuffer during the draining process. Once t
 #[derive(thiserror::Error, Debug)]
 pub enum ConversionError {
     #[error("Failed to convert text representation")]
-    SomeError,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum CursorError {
-    #[error(transparent)]
-    CharCursor(#[from] CharCursorError),
-    #[error(transparent)]
-    GraphemeClusterCursor(#[from] GraphemeClusterCursorError),
-    #[error(transparent)]
-    WordCursor(#[from] WordCursorError),
-    #[error(transparent)]
-    SentenceCursor(#[from] SentenceCursorError),
-    #[error(transparent)]
-    ParagraphCursor(#[from] ParagraphCursorError),
-    #[error(transparent)]
-    LineCursor(#[from] LineCursorError),
-    #[error(transparent)]
-    BlockCursor(#[from] BlockCursorError),
+    InvalidRange,
 }
 
 pub trait TextBuffer {
     //The where Self: 'cursor clause is crucial. It ensures that any reference held by the Cursor type must outlive the 'cursor lifetime.
     //Indicates that the Cursor cannot outlive the TextBuffer it is derived from.
-    type CharCursor<'cursor>: CharCursor<'cursor>
+    type CodepointCursor<'cursor>: CodepointCursor<'cursor>
     where
         Self: 'cursor;
-    type GraphemeClusterCursor<'cursor>: GraphemeClusterCursor<'cursor>
+    type GraphemeCursor<'cursor>: GraphemeCursor<'cursor>
     where
         Self: 'cursor;
     type WordCursor<'cursor>: WordCursor<'cursor>
@@ -91,16 +73,13 @@ pub trait TextBuffer {
     where
         Self: 'cursor;
 
-    type SpanItem: Into<Span>;
-
-    type SpanIter<'spans>: Iterator<Item = Self::SpanItem>
+    type SpanIterItem<'span_iter>: Into<crate::span::Span<SpanData>>
     where
-        Self: 'spans;
+        Self: 'span_iter;
 
-    //Quite crucial: we will implemenet default implementation to most of the traits for string slices.
-    fn from_str(s: &str) -> Self;
-    /// Construct an instance of this type from a `&str`.
-    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, ConversionError>;
+    type SpanIter<'span_iter>: Iterator<Item = Self::SpanIterItem<'span_iter>>
+    where
+        Self: 'span_iter;
 
     //Curors take a snapshot of the underlying text buffer, and then navigate around it, holding the state of their
     //offset position internal to them. As soon as the underlying buffer changes, the cursor is invalidated, and we
@@ -114,7 +93,10 @@ pub trait TextBuffer {
     ///Basic Use Case:
     /// Useful for iterating through text when you don't need to account for complex characters or grapheme
     /// clusters, such as when processing text at a byte level or when character-level navigation suffices.
-    fn char_cursor(&mut self, offset: usize) -> Result<Self::CharCursor<'_>, CharCursorError>;
+    fn codepoint_cursor(
+        &mut self,
+        offset: usize,
+    ) -> Result<Self::CodepointCursor<'_>, CodepointCursorError>;
     ////Grapheme Cluster Cursor:
     /// Unit of Movement:
     /// A Grapheme Cluster Cursor moves through the text one grapheme cluster at a time. A grapheme cluster is
@@ -124,10 +106,10 @@ pub trait TextBuffer {
     /// Essential when working with languages or scripts that involve complex character compositions, such as
     ///  diacritics, ligatures, or emoji sequences. It ensures that you navigate text in a way that respects
     /// the user's perception of characters.
-    fn grapheme_cluster_cursor(
+    fn grapheme_cursor(
         &mut self,
         offset: usize,
-    ) -> Result<Self::GraphemeClusterCursor<'_>, GraphemeClusterCursorError>;
+    ) -> Result<Self::GraphemeCursor<'_>, GraphemeCursorError>;
     ///Word Cursor: Jumps between word boundaries, allowing for efficient word-based navigation.
     fn word_cursor(&mut self, offset: usize) -> Result<Self::WordCursor<'_>, WordCursorError>;
     ///Sentence Cursor: Moves between sentences or sentence-like structures in the text, based on punctuation and context.
@@ -145,27 +127,26 @@ pub trait TextBuffer {
     ///Block Cursor: Allows you to jump between blocks of text, which could be defined by headers, section breaks, or other structural elements.
     fn block_cursor(&mut self, offset: usize) -> Result<Self::BlockCursor<'_>, BlockCursorError>;
 
-    fn cursor_coords(&mut self, offset: usize) -> Result<(RowPosition, ColPosition), CursorError>;
+    //Quite crucial: we will implemenet default implementation to most of the traits for string slices.
+    fn from_str(s: &str) -> Self;
+    /// Construct an instance of this type from a `&str`.
+    fn slice(&self, range: Range<usize>) -> Result<Cow<str>, ConversionError>;
 
-    fn write(&mut self, offset: usize, s: &str) -> Result<usize, CursorError>;
+    fn write(&mut self, offset: usize, s: &str) -> Result<usize, GraphemeCursorError>;
 
     fn drain(&mut self, range: Range<usize>) -> std::vec::Drain<&str>;
 
-    fn replace_range<R>(
+    fn replace_range(
         &mut self,
-        range: R,
+        range: Range<usize>,
         replace_with: &str,
-    ) -> Result<Range<usize>, CursorError>
-    where
-        R: RangeBounds<usize>;
+    ) -> Result<Range<usize>, GraphemeCursorError>;
 
     // fn flush(&mut self) -> Result<(), TextBufferError>;
 
     fn span_iter<'spans, 'buffer: 'spans>(&'buffer self) -> Self::SpanIter<'spans>;
 
-    fn annotate<R>(&mut self, range: R, annotation: peritext::Style)
-    where
-        R: RangeBounds<usize>;
+    fn annotate(&mut self, range: Range<usize>, data: SpanData);
 
     fn take(&self) -> Cow<str>;
 

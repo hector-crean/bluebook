@@ -1,4 +1,4 @@
-use crate::text_buffer::TextBuffer;
+use crate::buffer::TextBuffer;
 
 #[derive(thiserror::Error, Debug)]
 pub enum BlockCursorError {
@@ -10,4 +10,5 @@ pub enum BlockCursorError {
 pub trait BlockCursor<'buffer> {
     type Buffer: TextBuffer;
     fn new(text: &'buffer Self::Buffer, pos: usize) -> Self;
+    fn offset(&self) -> usize;
 }

@@ -1,5 +1,5 @@
-use std::{ffi::OsStr, os::unix::prelude::OsStringExt};
-
+use std::ffi::OsStr;
+use std::os::windows::ffi::OsStrExt;
 /// A code point boundary refers to the position within a sequence of text where a Unicode code point starts or ends.
 /// In Unicode, characters are represented by numeric values called code points. Each code point corresponds to a
 /// specific character or symbol, and these code points are organized into a large and standardized character set.
@@ -22,7 +22,7 @@ use std::{ffi::OsStr, os::unix::prelude::OsStringExt};
 /// represented by the code point U+1F600, starts at the beginning of a 16-bit code unit sequence (D83D DC00
 /// in hexadecimal) and ends at the end of that sequence.
 
-fn normalise_copied_str(os_str: OsStr) -> String {
+fn normalise_copied_str(os_str: &OsStr) -> String {
     // Simulate copying text from the clipboard (UTF-16 representation)
     let utf16_text: Vec<u16> = os_str.encode_wide().collect();
     // Convert UTF-16 to UTF-8 and store it in a String

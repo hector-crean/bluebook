@@ -5,8 +5,46 @@ use serde::{Deserialize, Serialize};
 /// We have a variety of cursor traits, which are used to find the next cursor offset, given an
 /// underlying text buffer, cursor mode etc.
 
-enum CursorOrientation {
-    Foward,
+/// A single selection range.
+///
+/// A range consists of an "anchor" and "head" position in
+/// the text.  The head is the part that the user moves when
+/// directly extending a selection.  The head and anchor
+/// can be in any order, or even share the same position.
+///
+/// The anchor and head positions use gap indexing, meaning
+/// that their indices represent the gaps *between* `char`s
+/// rather than the `char`s themselves. For example, 1
+/// represents the position between the first and second `char`.
+///
+/// Below are some examples of `Range` configurations.
+/// The anchor and head indices are shown as "(anchor, head)"
+/// tuples, followed by example text with "[" and "]" symbols
+/// representing the anchor and head positions:
+///
+/// - (0, 3): `[Som]e text`.
+/// - (3, 0): `]Som[e text`.
+/// - (2, 7): `So[me te]xt`.
+/// - (1, 1): `S[]ome text`.
+///
+/// Ranges are considered to be inclusive on the left and
+/// exclusive on the right, regardless of anchor-head ordering.
+/// This means, for example, that non-zero-width ranges that
+/// are directly adjacent, sharing an edge, do not overlap.
+/// However, a zero-width range will overlap with the shared
+/// left-edge of another range.
+///
+/// By convention, user-facing ranges are considered to have
+/// a block cursor on the head-side of the range that spans a
+/// single grapheme inward from the range's edge.  There are a
+/// variety of helper methods on `Range` for working in terms of
+/// that block cursor, all of which have `cursor` in their name.
+///
+///
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum CursorOrientation {
+    Forward,
     Backward,
 }
 

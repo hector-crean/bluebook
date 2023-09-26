@@ -1,39 +1,27 @@
-use crate::text_buffer::TextBuffer;
+use crate::buffer::TextBuffer;
 
-pub struct CharIter<'s> {
-    slice: &'s str,
-    index: usize,
+/// Describe char classifications used to compose word boundaries
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum CharClassification {
+    /// Carriage Return (`r`)
+    Cr,
+    /// Line feed (`\n`)
+    Lf,
+    /// Whitespace character
+    Space,
+    /// Any punctuation character
+    Punctuation,
+    /// Includes letters and all of non-ascii unicode
+    Other,
 }
 
-impl<'s> CharIter<'s> {
-    pub fn new(slice: &'s str) -> CharIter<'s> {
-        CharIter { slice, index: 0 }
-    }
-}
-
-impl<'s> Iterator for CharIter<'s> {
-    type Item = char;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.start < self.end {
-            let ch = self.slice[self.start..].chars().next().unwrap();
-            self.start += ch.len_utf8();
-            Some(ch)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'s> DoubleEndedIterator for CharIter<'s> {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        if self.start < self.end {
-            let slice = &self.slice[..self.end - self.start];
-            let ch = slice.chars().next_back().unwrap();
-            self.end -= ch.len_utf8();
-            Some(ch)
-        } else {
-            None
+impl CharClassification {
+    /// Return the [`CharClassification`] of the input character
+    pub fn new(codepoint: char) -> Self {
+        match codepoint {
+            '\r' => CharClassification::Cr,
+            '\n' => CharClassification::Lf,
+            _ => CharClassification::Other,
         }
     }
 }
@@ -74,7 +62,7 @@ pub fn char_is_whitespace(ch: char) -> bool {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum CharCursorError {
+pub enum CodepointCursorError {
     #[error("Invalid character encountered")]
     InvalidCharacter,
     // Add more error variants as needed
@@ -89,7 +77,10 @@ pub enum CharCursorError {
 /// char represents a complete and valid Unicode character, and it won't be split across multiple code
 /// points.
 ///
-pub trait CharCursor<'buffer> {
+pub trait CodepointCursor<'buffer>:
+    Iterator<Item = usize> + DoubleEndedIterator<Item = usize>
+{
     type Buffer: TextBuffer;
     fn new(text: &'buffer Self::Buffer, pos: usize) -> Self;
+    fn offset(&self) -> usize;
 }
