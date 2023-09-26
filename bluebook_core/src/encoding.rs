@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, os::windows::prelude::OsStrExt};
+use std::{ffi::OsStr, os::unix::prelude::OsStringExt};
 
 /// A code point boundary refers to the position within a sequence of text where a Unicode code point starts or ends.
 /// In Unicode, characters are represented by numeric values called code points. Each code point corresponds to a

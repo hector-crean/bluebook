@@ -2,17 +2,13 @@ use crate::{
     block::{BlockCursor, BlockCursorError},
     char::{CharCursor, CharCursorError},
     coordinates::{ColPosition, RowPosition},
-    error::TextBufferWithCursorError,
     graphemes::{GraphemeClusterCursor, GraphemeClusterCursorError},
     line::{LineCursor, LineCursorError},
     paragraph::{ParagraphCursor, ParagraphCursorError},
     sentence::{SentenceCursor, SentenceCursorError},
     span::Span,
-    text_buffer_cursor::CursorDocCoords,
     word::{WordCursor, WordCursorError},
 };
-
-use super::text_buffer_cursor::TextBufferCursor;
 
 use std::{
     borrow::Cow,
@@ -66,7 +62,7 @@ pub enum CursorError {
     BlockCursor(#[from] BlockCursorError),
 }
 
-pub trait TextBuffer: IntoIterator {
+pub trait TextBuffer {
     //The where Self: 'cursor clause is crucial. It ensures that any reference held by the Cursor type must outlive the 'cursor lifetime.
     //Indicates that the Cursor cannot outlive the TextBuffer it is derived from.
     type CharCursor<'cursor>: CharCursor<'cursor>
@@ -178,4 +174,9 @@ pub trait TextBuffer: IntoIterator {
 
     /// Returns `true` if this text has 0 length.
     fn is_empty(&self) -> bool;
+}
+
+#[cfg(test)]
+mod test {
+    use super::TextBuffer;
 }

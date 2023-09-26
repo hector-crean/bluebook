@@ -1,8 +1,5 @@
-use crate::error::TextBufferWithCursorError;
-use crate::text_buffer_cursor::TextBufferCursor;
 use crate::{
-    buffer::peritext_buffer::cursor_impl::CursorRange, command::Transaction,
-    text_buffer::TextBuffer,
+    command::Transaction, cursor::CursorRange, error::BluebookCoreError, text_buffer::TextBuffer,
 };
 
 pub struct TextEditorContext<Buffer>
@@ -29,7 +26,7 @@ where
     pub fn consume_transaction<B: TextBuffer>(
         &mut self,
         transaction: Transaction,
-    ) -> Result<bool, TextBufferWithCursorError> {
+    ) -> Result<bool, BluebookCoreError> {
         let success = match transaction {
             Transaction::DeleteSelection => match self.cursor_range.is_empty() {
                 true => Ok(false),

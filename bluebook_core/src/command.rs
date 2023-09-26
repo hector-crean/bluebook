@@ -1,10 +1,5 @@
-
-
 use strum::{Display, EnumMessage, IntoStaticStr};
 
-use crate::{
-    span::Annotation,
-};
 // use strum_macros::{Display, EnumIter, EnumMessage, EnumString, IntoStaticStr};
 
 #[derive(Display, Clone, PartialEq, Eq, Debug, EnumMessage, IntoStaticStr)]
@@ -100,9 +95,9 @@ pub enum Transaction {
         value: String,
     },
     DeleteSelection,
-    Annotate {
-        range: Annotation,
-    },
+    // Annotate {
+    //     range: Annotation,
+    // },
     RemoveAnnotation,
     MoveCursorHeadTo {
         offset: usize,
