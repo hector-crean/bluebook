@@ -1,4 +1,4 @@
-use crate::encoding;
+use crate::encoding::{self, normalize_to_ut8};
 use crate::graphemes::GraphemeCursor;
 use crate::{
     buffer::TextBuffer, command::Transaction, cursor::CursorRange, error::BluebookCoreError,
@@ -75,9 +75,25 @@ where
 
                 Ok(true)
             }
-            Transaction::Paste { clipboard: s } => Ok(false),
+            Transaction::Paste { clipboard: s } => {
+                let CursorRange { head, .. } = self.cursor_range;
+                let byte_idx = self.text_buffer.write(head, &s)?;
+
+                self.cursor_range.set_point(byte_idx);
+
+                tracing::info!("{:?}", self.text_buffer.slice(0..self.text_buffer.len()));
+
+                Ok(true)
+            }
             Transaction::InsertNewLine => {
-                let line_cursor = self.text_buffer.line_cursor(self.cursor_range.head);
+                let CursorRange { head, .. } = self.cursor_range;
+
+                let newline_char = '\n'.to_string();
+                let byte_idx = self.text_buffer.write(head, &newline_char)?;
+
+                self.cursor_range.set_point(byte_idx);
+
+                tracing::info!("{:?}", self.text_buffer.slice(0..self.text_buffer.len()));
 
                 Ok(true)
             }
@@ -105,6 +121,11 @@ where
                 };
 
                 Ok(transaction_suceeded)
+            }
+            Transaction::MoveCursorHeadTo { offset } => {
+                self.cursor_range.set_point(offset);
+
+                Ok(true)
             }
             _ => Ok(false),
         };

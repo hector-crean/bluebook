@@ -16,13 +16,13 @@ use bluebook_core::{
 use egui::{
     epaint::text::{Row, TextWrapping},
     text::LayoutJob,
-    vec2, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, Key, NumExt, Pos2,
-    Rect, Sense, TextFormat, Ui, Vec2,
+    vec2, Align2, Color32, Context, Event, FontId, FontSelection, Galley, Id, InputState, Key,
+    Modifiers, NumExt, PointerButton, Pos2, Rect, Response, Sense, TextFormat, Ui, Vec2,
 };
 
 use crate::formatting::{Formatting, TextFormatBuilder};
 
-use super::draw::Draw;
+use super::{cursor::cursor_from_visual_position, draw::Draw};
 
 #[derive(thiserror::Error, Debug)]
 pub enum TextEditorError {
@@ -30,32 +30,45 @@ pub enum TextEditorError {
     BluebookCoreError(#[from] bluebook_core::error::BluebookCoreError),
 }
 
-pub struct EguiViewCtx {
+pub struct ViewSettings {
     id: Id,
     margin: Vec2,
     align: Align2,
 }
-impl EguiViewCtx {
+
+impl ViewSettings {
     pub fn new(id: Id, margin: Vec2, align: Align2) -> Self {
         Self { id, margin, align }
     }
 }
 
-pub struct EguiTextEditor<Buf: TextBuffer>(pub TextEditor<Buf, egui::Event, EguiViewCtx>);
-
-impl<Buf: TextBuffer> Deref for EguiTextEditor<Buf> {
-    type Target = TextEditor<Buf, egui::Event, EguiViewCtx>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+pub struct ViewCtx {
+    pub response: Response,
+    pub galley: Arc<Galley>,
+    // pub text_draw_pos: Pos2,
+    // pub text_clip_rect: Rect,
+}
+impl ViewCtx {
+    fn new(response: Response, galley: Arc<Galley>, text_draw_pos: Pos2, clip_rect: Rect) -> Self {
+        Self { response, galley }
     }
 }
 
-impl<Buf: TextBuffer> DerefMut for EguiTextEditor<Buf> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+pub struct EguiTextEditor<Buf: TextBuffer>(pub TextEditor<Buf, egui::Event, ViewSettings, ViewCtx>);
+
+// impl<Buf: TextBuffer> Deref for EguiTextEditor<Buf> {
+//     type Target = TextEditor<Buf, egui::Event, ViewSettings, ViewCtx>;
+
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
+
+// impl<Buf: TextBuffer> DerefMut for EguiTextEditor<Buf> {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.0
+//     }
+// }
 
 pub fn editor_ui<'ctx, Buffer: TextBuffer + 'ctx>(
     text_edtitor: &'ctx mut EguiTextEditor<Buffer>,
@@ -64,8 +77,8 @@ pub fn editor_ui<'ctx, Buffer: TextBuffer + 'ctx>(
 }
 
 pub fn egui_transact_fn<Buf: TextBuffer>(
-    _ctx: &TextEditorContext<Buf>,
-    event: &Event,
+    ctx: &TextEditorContext<Buf>,
+    (event, view_ctx): (&Event, &ViewCtx),
 ) -> Option<Transaction> {
     match event {
         Event::Copy => None,
@@ -81,8 +94,8 @@ pub fn egui_transact_fn<Buf: TextBuffer>(
         } => match (key, pressed) {
             (Key::Backspace, true) => Some(Transaction::DeleteBackward),
             (Key::Enter, true) => Some(Transaction::InsertNewLine),
-            (Key::ArrowLeft, true) => Some(Transaction::MoveCursorLeft { grapheme_count: 1 }),
-            (Key::ArrowRight, true) => Some(Transaction::MoveCursorRight { grapheme_count: 1 }),
+            (Key::ArrowLeft, true) => Some(Transaction::MoveCursorLeft { grapheme_count: 0 }),
+            (Key::ArrowRight, true) => Some(Transaction::MoveCursorRight { grapheme_count: 0 }),
 
             _ => None,
         },
@@ -94,12 +107,25 @@ pub fn egui_transact_fn<Buf: TextBuffer>(
         Event::Paste(s) => Some(Transaction::Paste {
             clipboard: s.clone(),
         }),
+
         Event::PointerButton {
-            pos: _,
-            button: _,
-            pressed: _,
-            modifiers: _,
-        } => None,
+            pos,
+            button,
+            pressed,
+            modifiers,
+        } => match (pos, button, pressed, modifiers) {
+            (_, PointerButton::Primary, true, &Modifiers::NONE) => {
+                let cursor_doc_pos =
+                    cursor_from_visual_position(&view_ctx.galley, vec2(pos.x, pos.y));
+
+                let offset_of_position = ctx.text_buffer.offset_of_position(&cursor_doc_pos);
+
+                Some(Transaction::MoveCursorHeadTo {
+                    offset: offset_of_position,
+                })
+            }
+            _ => None,
+        },
         Event::PointerGone => None,
         Event::PointerMoved(_c) => None,
         Event::Text(s) => Some(Transaction::InsertAtCursorHead { value: s.into() }),
@@ -118,7 +144,7 @@ where
         // Calculate widget size and allocate space in one step:
         let max_rect = ui
             .available_rect_before_wrap()
-            .shrink2(self.view_ctx.margin);
+            .shrink2(self.0.settings.margin);
 
         let galley = self.rich_text_layouter(ui, max_rect.width());
 
@@ -128,42 +154,51 @@ where
         };
 
         // Interact and handle events:
-        let mut response = ui.interact(rect, auto_id, Sense::click_and_drag());
-        let events = ui.input(|i| i.events.clone());
+        let response = ui.interact(rect, auto_id, Sense::click_and_drag());
+
+        let events = ui.input(|input| {
+            let egui::InputState { events, .. } = input;
+
+            events.clone()
+        });
+
+        let size = &galley.size();
+        let draw_position = self.draw_position(&size, &rect);
+        let cursor_rect = self.cursor_rect(ui, &font_id, &galley, draw_position);
+        let painter = ui.painter_at(rect.expand(1.0));
+        let draw = Draw::new(&painter);
+
+        let view_ctx = ViewCtx::new(response, galley, draw_position, rect);
 
         let requires_change = events.iter().any(|event| {
-            self.emit_transcation(event).map_or(false, |t| {
-                self.edit_ctx()
-                    .consume_transaction::<Buffer>(t)
-                    .unwrap_or(true)
-            })
+            self.0
+                .emit_transcation(event, &view_ctx)
+                .map_or(false, |t| {
+                    self.0
+                        .edit_ctx()
+                        .consume_transaction::<Buffer>(t)
+                        .unwrap_or(true)
+                })
         });
 
         if requires_change {
-            response.mark_changed();
+            // response.mark_changed();
         }
 
         // Paint if visible:
         if ui.is_rect_visible(rect) {
-            let draw_position = self.draw_position(galley.size(), rect);
-
-            let cursor_rect = self.cursor_rect(ui, &font_id, &galley, draw_position);
-
-            let painter = ui.painter_at(rect.expand(1.0));
-            let draw = Draw::new(&painter);
-
             if let Ok(cursor_rect) = cursor_rect {
                 draw.draw_cursor(cursor_rect);
             }
-            draw.draw_text(draw_position, galley);
+            draw.draw_text(draw_position, view_ctx.galley);
         }
 
-        response
+        view_ctx.response
     }
 
     fn rich_text_layouter(&mut self, ui: &Ui, _max_width: f32) -> Arc<Galley> {
-        let len = self.edit_ctx.text_buffer.len();
-        let s = self.edit_ctx.text_buffer.slice(0..len).to_string();
+        let len = self.0.edit_ctx.text_buffer.len();
+        let s = self.0.edit_ctx.text_buffer.slice(0..len).to_string();
 
         let mut job = LayoutJob {
             break_on_newline: true,
@@ -214,22 +249,22 @@ where
             available_width
         } else {
             text_edit_width.min(available_width)
-        } - self.0.view_ctx.margin.x * 2.0;
+        } - self.0.settings.margin.x * 2.0;
 
         let desired_width = galley_size.x.max(wrap_width);
         let row_height = ui.fonts(|f| f.row_height(font_id));
         let desired_height = 4.0 * row_height;
 
         Vec2::new(desired_width, galley_size.y.max(desired_height))
-            .at_least(Vec2::ZERO - self.0.view_ctx.margin * 2.0)
+            .at_least(Vec2::ZERO - self.0.settings.margin * 2.0)
     }
 
-    fn draw_position(&self, size: Vec2, frame: Rect) -> Pos2 {
+    fn draw_position(&self, size: &Vec2, frame: &Rect) -> Pos2 {
         self.0
-            .view_ctx
+            .settings
             .align
-            .align_size_within_rect(size, frame)
-            .intersect(frame) // limit pos to the response rect area
+            .align_size_within_rect(size.clone(), frame.clone())
+            .intersect(frame.clone()) // limit pos to the response rect area
             .min
     }
 
@@ -243,7 +278,7 @@ where
         let TextEditorContext {
             text_buffer,
             cursor_range,
-        } = &self.edit_ctx;
+        } = &self.0.edit_ctx;
 
         let Position {
             line: row,

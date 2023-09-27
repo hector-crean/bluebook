@@ -1,5 +1,3 @@
-/// Position in a text document expressed as zero-based line and character offset.
-/// A position is between two characters like an 'insert' cursor in a editor.
 #[derive(
     Debug,
     Eq,
@@ -13,13 +11,22 @@
     serde::Serialize,
 )]
 pub struct Position {
-    /// Line position in a document (zero-based).
-    pub line: u32,
-    /// Character offset on a line in a document (zero-based). Assuming that
-    /// the line is represented as a string, the `character` value represents
-    /// the gap between the `character` and `character + 1`.
-    ///
-    /// If the character value is greater than the line length it defaults back
-    /// to the line length.
-    pub character: u32,
+    pub line: usize,
+    pub character: usize,
+}
+
+impl Position {
+    pub const fn new(line: usize, character: usize) -> Self {
+        Self { line, character }
+    }
+
+    pub const fn is_zero(self) -> bool {
+        self.line == 0 && self.character == 0
+    }
+}
+
+impl From<(usize, usize)> for Position {
+    fn from((line, character): (usize, usize)) -> Self {
+        Self { line, character }
+    }
 }

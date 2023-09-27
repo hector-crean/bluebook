@@ -1,3 +1,5 @@
+#![feature(pattern)]
+
 pub mod block;
 pub mod buffer;
 pub mod buffer_impl;
@@ -16,6 +18,8 @@ pub mod mode;
 pub mod movement;
 pub mod paragraph;
 pub mod position;
+pub mod search;
 pub mod sentence;
 pub mod span;
+pub mod text_annotation;
 pub mod word;

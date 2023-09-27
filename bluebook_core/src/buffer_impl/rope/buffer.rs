@@ -167,7 +167,7 @@ impl TextBuffer for RopeBuffer {
         offset: usize,
         s: &str,
     ) -> Result<usize, crate::graphemes::GraphemeCursorError> {
-        self.inner.edit(offset..offset + s.len(), s);
+        self.inner.edit(offset..offset, s);
 
         Ok(offset + s.len())
     }
@@ -257,8 +257,8 @@ impl TextBuffer for RopeBuffer {
         let utf16_col = encoding::offset_utf8_to_utf16(self.char_indices_iter(line_offset..), col);
 
         Position {
-            line: line as u32,
-            character: utf16_col as u32,
+            line,
+            character: utf16_col,
         }
     }
 
@@ -269,13 +269,11 @@ impl TextBuffer for RopeBuffer {
     }
 
     fn position_to_line_col(&self, pos: &Position) -> (usize, usize) {
-        let line = pos.line as usize;
+        let line = pos.line;
         let line_offset = self.offset_of_line(line);
 
-        let column = encoding::offset_utf16_to_utf8(
-            self.char_indices_iter(line_offset..),
-            pos.character as usize,
-        );
+        let column =
+            encoding::offset_utf16_to_utf8(self.char_indices_iter(line_offset..), pos.character);
 
         (line, column)
     }

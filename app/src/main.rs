@@ -1,5 +1,5 @@
 use bluebook_app::widgets::rich_text_editor::view::{
-    editor_ui, egui_transact_fn, EguiTextEditor, EguiViewCtx,
+    editor_ui, egui_transact_fn, EguiTextEditor, ViewCtx, ViewSettings,
 };
 
 use bluebook_core::{
@@ -31,12 +31,13 @@ impl TextEditApp {
 
         // println!("{:?}, {:?}", &self.cursor_range, &self.buf.take());
         let edit_ctx = TextEditorContext::new(buf, cursor_range);
-        let view_ctx = EguiViewCtx::new(Id::new("text_editor"), Vec2::ZERO, Align2::CENTER_CENTER);
+        let view_settings =
+            ViewSettings::new(Id::new("text_editor"), Vec2::ZERO, Align2::CENTER_CENTER);
 
-        let editor = TextEditor::<RopeBuffer, egui::Event, EguiViewCtx>::new(
+        let editor = TextEditor::<RopeBuffer, egui::Event, ViewSettings, ViewCtx>::new(
             edit_ctx,
             egui_transact_fn,
-            view_ctx,
+            view_settings,
         );
 
         Self {
