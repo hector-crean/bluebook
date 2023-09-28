@@ -2,14 +2,16 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
 use std::ops::{Range, RangeBounds};
+use std::sync::Arc;
 
 use xi_rope::interval::IntervalBounds;
 use xi_rope::rope::ChunkIter;
-use xi_rope::LinesMetric;
+use xi_rope::spans::{SpansBuilder, SpansInfo};
 use xi_rope::{
     spans::{Span, SpanIter},
     Interval, Rope,
 };
+use xi_rope::{LinesMetric, RopeDelta};
 
 use crate::codepoint::CharIndicesJoin;
 use crate::encoding;
@@ -27,14 +29,19 @@ use super::{
     word_cursor::RopeWordCursor,
 };
 
+#[derive(Clone)]
+pub struct InlayHint {}
+
 pub struct RopeBuffer {
-    pub inner: Rope,
+    pub text: Rope,
+    tombstones: Rope,
 }
 
 impl RopeBuffer {
     pub fn new(s: &str) -> Self {
         Self {
-            inner: Rope::from(s),
+            text: Rope::from(s),
+            tombstones: Rope::default(),
         }
     }
 
@@ -50,25 +57,29 @@ impl RopeBuffer {
             iter.map(str::char_indices);
         CharIndicesJoin::new(iter)
     }
+
+    fn edit(&mut self) -> RopeDelta {
+        let mut builder = DeltaBi::new(self.len());
+    }
 }
 
 impl Deref for RopeBuffer {
     type Target = Rope;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.text
     }
 }
 
 impl DerefMut for RopeBuffer {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
+        &mut self.text
     }
 }
 
 impl ToString for RopeBuffer {
     fn to_string(&self) -> String {
-        self.inner.to_string()
+        self.text.to_string()
     }
 }
 
@@ -98,12 +109,13 @@ impl TextBuffer for RopeBuffer {
 
     fn from_str(s: &str) -> Self {
         RopeBuffer {
-            inner: Rope::from(s),
+            text: Rope::from(s),
+            tombstones: Rope::default(),
         }
     }
 
     fn slice(&self, range: std::ops::Range<usize>) -> Cow<str> {
-        self.inner.slice_to_cow(range)
+        self.text.slice_to_cow(range)
     }
 
     fn codepoint_cursor(
@@ -167,7 +179,7 @@ impl TextBuffer for RopeBuffer {
         offset: usize,
         s: &str,
     ) -> Result<usize, crate::graphemes::GraphemeCursorError> {
-        self.inner.edit(offset..offset, s);
+        self.text.edit(offset..offset, s);
 
         Ok(offset + s.len())
     }
@@ -183,7 +195,7 @@ impl TextBuffer for RopeBuffer {
     ) -> Result<Range<usize>, crate::graphemes::GraphemeCursorError> {
         let iv = Interval::new(range.start, range.end);
 
-        self.inner.edit(iv, replace_with);
+        self.text.edit(iv, replace_with);
         Ok(range)
     }
 
@@ -192,19 +204,21 @@ impl TextBuffer for RopeBuffer {
     }
 
     fn annotate(&mut self, range: Range<usize>, data: SpanData) {
-        todo!()
+        let mut sb = SpansBuilder::new(self.len());
+        sb.add_span(range, data);
+        let spans = sb.build();
     }
 
     fn take(&self) -> std::borrow::Cow<str> {
-        self.inner.slice_to_cow(..)
+        self.text.slice_to_cow(..)
     }
 
     fn len(&self) -> usize {
-        self.inner.len()
+        self.text.len()
     }
 
     fn is_empty(&self) -> bool {
-        self.inner.is_empty()
+        self.text.is_empty()
     }
 
     /// Return the line number corresponding to the byte index `offset`.
