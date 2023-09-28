@@ -46,13 +46,13 @@ impl Deref for Elem {
     type Target = ElemInner;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.text
     }
 }
 
 impl DerefMut for Elem {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
+        &mut self.text
     }
 }
 
@@ -431,7 +431,7 @@ impl Sliceable for Elem {
             return;
         }
 
-        self.inner
+        self.text
             .anchor_set
             .trim_(start != 0, end != self.atom_len());
         self.id = self.id.inc(start as Counter);

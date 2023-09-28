@@ -326,13 +326,13 @@ pub struct StyleCalculator {
 
 impl StyleCalculator {
     pub fn insert_start(&mut self, start: AnnIdx) {
-        self.inner.insert(start);
+        self.text.insert(start);
     }
 
     pub fn apply_node_start(&mut self, anchor_set: &CacheAnchorSet) {
         if !anchor_set.start.is_empty() {
             for ann in anchor_set.start.iter() {
-                self.inner.insert(*ann);
+                self.text.insert(*ann);
             }
         }
     }
@@ -340,7 +340,7 @@ impl StyleCalculator {
     pub fn apply_node_end(&mut self, anchor_set: &CacheAnchorSet) {
         if !anchor_set.end.is_empty() {
             for ann in anchor_set.end.iter() {
-                self.inner.remove(ann);
+                self.text.remove(ann);
             }
         }
     }
@@ -348,12 +348,12 @@ impl StyleCalculator {
     pub fn apply_start(&mut self, anchor_set: &ElemAnchorSet) {
         if !anchor_set.start_before.is_empty() {
             for ann in anchor_set.start_before.iter() {
-                self.inner.insert(*ann);
+                self.text.insert(*ann);
             }
         }
         if !anchor_set.end_before.is_empty() {
             for ann in anchor_set.end_before.iter() {
-                self.inner.remove(ann);
+                self.text.remove(ann);
             }
         }
     }
@@ -361,12 +361,12 @@ impl StyleCalculator {
     pub fn apply_end(&mut self, anchor_set: &ElemAnchorSet) {
         if !anchor_set.start_after.is_empty() {
             for ann in anchor_set.start_after.iter() {
-                self.inner.insert(*ann);
+                self.text.insert(*ann);
             }
         }
         if !anchor_set.end_after.is_empty() {
             for ann in anchor_set.end_after.iter() {
-                self.inner.remove(ann);
+                self.text.remove(ann);
             }
         }
     }
@@ -387,14 +387,14 @@ impl StyleCalculator {
     pub fn commit_cache(&mut self) {
         if !self.cached_start_after.is_empty() {
             for ann in self.cached_start_after.iter() {
-                self.inner.insert(*ann);
+                self.text.insert(*ann);
             }
             self.cached_start_after.clear();
         }
 
         if !self.cached_end_after.is_empty() {
             for ann in self.cached_end_after.iter() {
-                self.inner.remove(ann);
+                self.text.remove(ann);
             }
             self.cached_end_after.clear();
         }
@@ -402,12 +402,12 @@ impl StyleCalculator {
 
     #[allow(unused)]
     pub fn iter(&self) -> impl Iterator<Item = &AnnIdx> {
-        self.inner.iter()
+        self.text.iter()
     }
 
     pub fn calc_styles(&self, manager: &AnnManager) -> impl Iterator<Item = Arc<Annotation>> {
         let mut style_map = FxHashMap::default();
-        for ann in self.inner.iter() {
+        for ann in self.text.iter() {
             let ann = manager.get_ann_by_idx(*ann).unwrap();
             let suffix_to_make_inclusive_work = if ann.behavior == Behavior::AllowMultiple {
                 Some(ann.id)

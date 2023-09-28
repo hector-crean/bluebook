@@ -68,7 +68,7 @@ impl<'buffer> WordCursor<'buffer> for RopeWordCursor<'buffer> {
     type Buffer = RopeBuffer;
 
     fn new(buffer: &'buffer Self::Buffer, pos: usize) -> Self {
-        let cursor = Cursor::new(&buffer.inner, pos);
+        let cursor = Cursor::new(&buffer.text, pos);
         RopeWordCursor { cursor }
     }
     fn offset(&self) -> usize {
