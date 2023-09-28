@@ -20,7 +20,7 @@ use std::os::windows::ffi::OsStrExt;
 /// A code point boundary in UTF-8 means that a code point starts at the beginning of a byte sequence or ends
 /// at the end of a byte sequence. For example, the letter 'A', represented by the code point U+0041, starts at
 /// the beginning of a byte sequence (41 in hexadecimal) and ends at the end of that sequence.
-//// UTF-16 Example:
+/// UTF-16 Example:
 /// In UTF-16, code points are represented using one or two 16-bit code units. A code point boundary in
 /// UTF-16 aligns with the start or end of a 16-bit code unit. For example, the emoji character '😀',
 /// represented by the code point U+1F600, starts at the beginning of a 16-bit code unit sequence (D83D DC00

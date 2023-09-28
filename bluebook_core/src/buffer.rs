@@ -1,23 +1,16 @@
-use xi_rope::rope::ChunkIter;
-
 use crate::{
     block::{BlockCursor, BlockCursorError},
-    codepoint::{CharIndicesJoin, CodepointCursor, CodepointCursorError},
-    coordinates::{ColPosition, RowPosition},
-    encoding,
+    codepoint::{CodepointCursor, CodepointCursorError},
     graphemes::{GraphemeCursor, GraphemeCursorError},
     line::{LineCursor, LineCursorError},
     paragraph::{ParagraphCursor, ParagraphCursorError},
     position::Position,
     sentence::{SentenceCursor, SentenceCursorError},
-    span::{Span, SpanData},
+    span::SpanData,
     word::{WordCursor, WordCursorError},
 };
 
-use std::{
-    borrow::Cow,
-    ops::{Range, RangeBounds},
-};
+use std::{borrow::Cow, ops::Range};
 
 /**
  *

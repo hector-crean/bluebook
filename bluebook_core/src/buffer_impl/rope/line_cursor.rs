@@ -17,15 +17,13 @@ impl<'a> From<Cursor<'a, RopeInfo>> for RopeLineCursor<'a> {
 impl<'a> Iterator for RopeLineCursor<'a> {
     type Item = usize;
     fn next(&mut self) -> Option<Self::Item> {
-        let offset = self.cursor.next::<LinesMetric>();
-        offset
+        self.cursor.next::<LinesMetric>()
     }
 }
 
 impl<'a> DoubleEndedIterator for RopeLineCursor<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let offset = self.cursor.prev::<LinesMetric>();
-        offset
+        self.cursor.prev::<LinesMetric>()
     }
 }
 

@@ -1,8 +1,7 @@
-use xi_rope::{Cursor, Rope, RopeInfo};
+use xi_rope::{Cursor, RopeInfo};
 
 use crate::{
     codepoint::CharClassification,
-    mode::Mode,
     word::{WordBoundary, WordCursor},
 };
 

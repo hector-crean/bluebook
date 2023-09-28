@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use xi_rope::Rope;
 
 use crate::search::SearchIter;

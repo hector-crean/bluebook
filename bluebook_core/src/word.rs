@@ -1,4 +1,4 @@
-use crate::{buffer::TextBuffer, codepoint::CharClassification, mode::Mode};
+use crate::{buffer::TextBuffer, codepoint::CharClassification};
 
 /// A word boundary can be the start of a word, its end or both for punctuation
 #[derive(PartialEq, Eq)]

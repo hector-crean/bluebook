@@ -1,5 +1,4 @@
-use std::{sync::Arc};
-
+use std::sync::Arc;
 
 use egui::{Color32, Galley, Painter, Pos2, Rect};
 

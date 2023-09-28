@@ -1,6 +1,6 @@
 use crate::buffer::TextBuffer;
 use crate::graphemes::GraphemeCursor;
-use xi_rope::{Cursor, LinesMetric, RopeInfo};
+use xi_rope::{Cursor, RopeInfo};
 
 use super::buffer::RopeBuffer;
 

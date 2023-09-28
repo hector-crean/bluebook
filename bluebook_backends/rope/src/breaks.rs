@@ -74,7 +74,10 @@ impl Leaf for BreaksLeaf {
 
             let new_len = self.len - splitpoint_units;
             self.len = splitpoint_units;
-            Some(BreaksLeaf { len: new_len, data: new })
+            Some(BreaksLeaf {
+                len: new_len,
+                data: new,
+            })
         }
     }
 }
@@ -214,7 +217,10 @@ pub struct BreakBuilder {
 
 impl Default for BreakBuilder {
     fn default() -> BreakBuilder {
-        BreakBuilder { b: TreeBuilder::new(), leaf: BreaksLeaf::default() }
+        BreakBuilder {
+            b: TreeBuilder::new(),
+            leaf: BreaksLeaf::default(),
+        }
     }
 }
 
@@ -278,7 +284,10 @@ mod tests {
 
     #[test]
     fn one() {
-        let testleaf = BreaksLeaf { len: 10, data: vec![10] };
+        let testleaf = BreaksLeaf {
+            len: 10,
+            data: vec![10],
+        };
         let testnode = Node::<BreaksInfo>::from_leaf(testleaf.clone());
         assert_eq!(10, testnode.len());
         let mut c = Cursor::new(&testnode, 0);

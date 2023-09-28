@@ -1,19 +1,17 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::ops::Range;
 use std::ops::{Deref, DerefMut};
-use std::ops::{Range, RangeBounds};
-use std::sync::Arc;
 
-use xi_rope::interval::IntervalBounds;
-use xi_rope::rope::ChunkIter;
-use xi_rope::spans::{SpansBuilder, SpansInfo};
+use xi_rope::tree::Node;
+use xi_rope::RopeInfo;
 use xi_rope::{
-    spans::{Span, SpanIter},
-    Interval, Rope,
+    interval::IntervalBounds, rope::ChunkIter, spans::SpansBuilder, DeltaBuilder, Interval,
+    LinesMetric, Rope, RopeDelta,
 };
-use xi_rope::{LinesMetric, RopeDelta};
 
 use crate::codepoint::CharIndicesJoin;
+use crate::cursor::CursorRange;
 use crate::encoding;
 use crate::position::Position;
 use crate::{
@@ -58,8 +56,33 @@ impl RopeBuffer {
         CharIndicesJoin::new(iter)
     }
 
-    fn edit(&mut self) -> RopeDelta {
-        let mut builder = DeltaBi::new(self.len());
+    fn edit(&mut self, edits: &[(impl AsRef<CursorRange>, &str)]) -> RopeDelta {
+        let mut builder = DeltaBuilder::new(self.len());
+        let mut interval_rope: Vec<(usize, usize, Node<RopeInfo>)> = Vec::new();
+
+        // for (selection, content) in edits {
+        //     let rope = Rope::from(content);
+        //     for region in selection.as_ref().regions() {
+        //         interval_rope.push((region.min(), region.max(), rope.clone()));
+        //     }
+        // }
+
+        // interval_rope.sort_by(|a, b| {
+        //     if a.0 == b.0 && a.1 == b.1 {
+        //         Ordering::Equal
+        //     } else if a.1 == b.0 {
+        //         Ordering::Less
+        //     } else {
+        //         a.1.cmp(&b.0)
+        //     }
+        // });
+
+        for (start, end, rope) in interval_rope.into_iter() {
+            builder.replace(start..end, rope);
+        }
+        let delta = builder.build();
+
+        delta
     }
 }
 
@@ -83,14 +106,14 @@ impl ToString for RopeBuffer {
     }
 }
 
-impl<'a, T: Clone> Into<crate::span::Span<T>> for (xi_rope::Interval, &'a T) {
-    fn into(self) -> crate::span::Span<T> {
-        let start = self.0.start();
-        let end = self.0.end();
+impl<'a, T: Clone> From<(xi_rope::Interval, &'a T)> for crate::span::Span<T> {
+    fn from(val: (xi_rope::Interval, &'a T)) -> Self {
+        let start = val.0.start();
+        let end = val.0.end();
 
         crate::span::Span {
             range: Range { start, end },
-            data: self.1.clone(),
+            data: val.1.clone(),
         }
     }
 }
@@ -184,7 +207,7 @@ impl TextBuffer for RopeBuffer {
         Ok(offset + s.len())
     }
 
-    fn drain(&mut self, range: std::ops::Range<usize>) -> std::vec::Drain<&str> {
+    fn drain(&mut self, _range: std::ops::Range<usize>) -> std::vec::Drain<&str> {
         todo!()
     }
 
@@ -206,7 +229,7 @@ impl TextBuffer for RopeBuffer {
     fn annotate(&mut self, range: Range<usize>, data: SpanData) {
         let mut sb = SpansBuilder::new(self.len());
         sb.add_span(range, data);
-        let spans = sb.build();
+        let _spans = sb.build();
     }
 
     fn take(&self) -> std::borrow::Cow<str> {
@@ -255,9 +278,7 @@ impl TextBuffer for RopeBuffer {
             Ordering::Greater => {
                 panic!("line number {} beyond last line {}", line, max_line);
             }
-            Ordering::Equal => {
-                return self.len();
-            }
+            Ordering::Equal => self.len(),
             Ordering::Less => self.count_base_units::<LinesMetric>(line),
         }
     }

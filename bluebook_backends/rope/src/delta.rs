@@ -134,7 +134,11 @@ impl<N: NodeInfo> Delta<N> {
     /// Apply the delta to the given rope. May not work well if the length of the rope
     /// is not compatible with the construction of the delta.
     pub fn apply(&self, base: &Node<N>) -> Node<N> {
-        debug_assert_eq!(base.len(), self.base_len, "must apply Delta to Node of correct length");
+        debug_assert_eq!(
+            base.len(),
+            self.base_len,
+            "must apply Delta to Node of correct length"
+        );
         let mut b = TreeBuilder::new();
         for elem in &self.els {
             match *elem {
@@ -183,7 +187,13 @@ impl<N: NodeInfo> Delta<N> {
         }
         sb.add_range(e1, self.base_len, 1);
         sb.pad_to_len(self.base_len);
-        (InsertDelta(Delta { els: ins, base_len: self.base_len }), sb.build())
+        (
+            InsertDelta(Delta {
+                els: ins,
+                base_len: self.base_len,
+            }),
+            sb.build(),
+        )
     }
 
     /// Synthesize a delta from a "union string" and two subsets: an old set
@@ -300,7 +310,10 @@ impl<N: NodeInfo> Delta<N> {
                 els = init;
             }
         }
-        (Interval::new(iv_start, iv_end), Delta::total_element_len(els))
+        (
+            Interval::new(iv_start, iv_end),
+            Delta::total_element_len(els),
+        )
     }
 
     /// Returns the length of the new document. In other words, the length of
@@ -332,12 +345,21 @@ impl<N: NodeInfo> Delta<N> {
 
     /// Iterates over all the inserts of the delta.
     pub fn iter_inserts(&self) -> InsertsIter<N> {
-        InsertsIter { pos: 0, last_end: 0, els_iter: self.els.iter() }
+        InsertsIter {
+            pos: 0,
+            last_end: 0,
+            els_iter: self.els.iter(),
+        }
     }
 
     /// Iterates over all the deletions of the delta.
     pub fn iter_deletions(&self) -> DeletionsIter<N> {
-        DeletionsIter { pos: 0, last_end: 0, base_len: self.base_len, els_iter: self.els.iter() }
+        DeletionsIter {
+            pos: 0,
+            last_end: 0,
+            base_len: self.base_len,
+            els_iter: self.els.iter(),
+        }
     }
 }
 
@@ -402,7 +424,11 @@ impl<N: NodeInfo> InsertDelta<N> {
         let mut last_xform = xform_ranges.next();
         let l = xform.count(CountMatcher::All);
         while y < l || i < cur_els.len() {
-            let next_iv_beg = if let Some((xb, _)) = last_xform { xb } else { l };
+            let next_iv_beg = if let Some((xb, _)) = last_xform {
+                xb
+            } else {
+                l
+            };
             if after && y < next_iv_beg {
                 y = next_iv_beg;
             }
@@ -465,7 +491,10 @@ impl<N: NodeInfo> InsertDelta<N> {
                 DeltaElement::Insert(ref n) => DeltaElement::Insert(n.clone()),
             })
             .collect();
-        InsertDelta(Delta { els, base_len: xform.len_after_delete() })
+        InsertDelta(Delta {
+            els,
+            base_len: xform.len_after_delete(),
+        })
     }
 
     /// Return a Subset containing the inserted ranges.
@@ -582,16 +611,27 @@ pub struct Builder<N: NodeInfo> {
 impl<N: NodeInfo> Builder<N> {
     /// Creates a new builder, applicable to a base rope of length `base_len`.
     pub fn new(base_len: usize) -> Builder<N> {
-        Builder { delta: Delta { els: Vec::new(), base_len }, last_offset: 0 }
+        Builder {
+            delta: Delta {
+                els: Vec::new(),
+                base_len,
+            },
+            last_offset: 0,
+        }
     }
 
     /// Deletes the given interval. Panics if interval is not properly sorted.
     pub fn delete<T: IntervalBounds>(&mut self, interval: T) {
         let interval = interval.into_interval(self.delta.base_len);
         let (start, end) = interval.start_end();
-        assert!(start >= self.last_offset, "Delta builder: intervals not properly sorted");
+        assert!(
+            start >= self.last_offset,
+            "Delta builder: intervals not properly sorted"
+        );
         if start > self.last_offset {
-            self.delta.els.push(DeltaElement::Copy(self.last_offset, start));
+            self.delta
+                .els
+                .push(DeltaElement::Copy(self.last_offset, start));
         }
         self.last_offset = end;
     }
@@ -613,7 +653,9 @@ impl<N: NodeInfo> Builder<N> {
     /// Builds the `Delta`.
     pub fn build(mut self) -> Delta<N> {
         if self.last_offset < self.delta.base_len {
-            self.delta.els.push(DeltaElement::Copy(self.last_offset, self.delta.base_len));
+            self.delta
+                .els
+                .push(DeltaElement::Copy(self.last_offset, self.delta.base_len));
         }
         self.delta
     }
@@ -634,7 +676,11 @@ pub struct DeltaRegion {
 
 impl DeltaRegion {
     fn new(old_offset: usize, new_offset: usize, len: usize) -> Self {
-        DeltaRegion { old_offset, new_offset, len }
+        DeltaRegion {
+            old_offset,
+            new_offset,
+            len,
+        }
     }
 }
 
@@ -692,7 +738,11 @@ impl<'a, N: NodeInfo> Iterator for DeletionsIter<'a, N> {
             }
         }
         if result.is_none() && self.last_end < self.base_len {
-            result = Some(DeltaRegion::new(self.last_end, self.pos, self.base_len - self.last_end));
+            result = Some(DeltaRegion::new(
+                self.last_end,
+                self.pos,
+                self.base_len - self.last_end,
+            ));
             self.last_end = self.base_len;
         }
         result
@@ -742,7 +792,10 @@ mod tests {
     fn inserted_subset() {
         let d = Delta::simple_edit(Interval::new(1, 9), Rope::from("era"), 11);
         let (d1, _ss) = d.factor();
-        assert_eq!("hello world", d1.inserted_subset().delete_from_string("heraello world"));
+        assert_eq!(
+            "hello world",
+            d1.inserted_subset().delete_from_string("heraello world")
+        );
     }
 
     #[test]
@@ -750,9 +803,15 @@ mod tests {
         let str1 = "01259DGJKNQTUVWXYcdefghkmopqrstvwxy";
         let s1 = find_deletions(str1, TEST_STR);
         let d = Delta::simple_edit(Interval::new(10, 12), Rope::from("+"), str1.len());
-        assert_eq!("01259DGJKN+UVWXYcdefghkmopqrstvwxy", d.apply_to_string(str1));
+        assert_eq!(
+            "01259DGJKN+UVWXYcdefghkmopqrstvwxy",
+            d.apply_to_string(str1)
+        );
         let (d2, _ss) = d.factor();
-        assert_eq!("01259DGJKN+QTUVWXYcdefghkmopqrstvwxy", d2.apply_to_string(str1));
+        assert_eq!(
+            "01259DGJKN+QTUVWXYcdefghkmopqrstvwxy",
+            d2.apply_to_string(str1)
+        );
         let d3 = d2.transform_expand(&s1, false);
         assert_eq!(
             "0123456789ABCDEFGHIJKLMN+OPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",

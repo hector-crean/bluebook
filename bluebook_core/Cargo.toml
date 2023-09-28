@@ -21,5 +21,4 @@ smallvec = "1.11.0"
 tracing = "0.1"
 bitflags = "2.4.0"
 # backends
-peritext = { path = "../bluebook_backends/peritext" }
-xi_rope = { path = "../bluebook_backends/rope" }
+xi_rope = { path = "../bluebook_backends/rope",  features = ["serde"] }

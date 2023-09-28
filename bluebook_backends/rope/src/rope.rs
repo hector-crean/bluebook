@@ -769,7 +769,7 @@ impl<'a> Iterator for LinesRaw<'a> {
         let mut result = Cow::from("");
         loop {
             if self.fragment.is_empty() {
-                match self.text.next() {
+                match self.inner.next() {
                     Some(chunk) => self.fragment = chunk,
                     None => {
                         return if result.is_empty() {
@@ -807,7 +807,7 @@ impl<'a> Iterator for Lines<'a> {
     type Item = Cow<'a, str>;
 
     fn next(&mut self) -> Option<Cow<'a, str>> {
-        match self.text.next() {
+        match self.inner.next() {
             Some(Cow::Borrowed(mut s)) => {
                 if s.ends_with('\n') {
                     s = &s[..s.len() - 1];

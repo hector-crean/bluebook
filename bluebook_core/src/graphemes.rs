@@ -1,6 +1,4 @@
-use unicode_segmentation::GraphemeIncomplete;
-
-use crate::{buffer::TextBuffer, cursor::CursorRange};
+use crate::buffer::TextBuffer;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphemeCursorError {

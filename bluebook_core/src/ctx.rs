@@ -1,4 +1,3 @@
-use crate::encoding::{self, normalize_to_ut8};
 use crate::graphemes::GraphemeCursor;
 use crate::{
     buffer::TextBuffer, command::Transaction, cursor::CursorRange, error::BluebookCoreError,

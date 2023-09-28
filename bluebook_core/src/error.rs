@@ -1,14 +1,8 @@
 use crate::buffer;
 use crate::{
-    block::{BlockCursor, BlockCursorError},
-    codepoint::{CodepointCursor, CodepointCursorError},
-    coordinates::{ColPosition, RowPosition},
-    graphemes::{GraphemeCursor, GraphemeCursorError},
-    line::{LineCursor, LineCursorError},
-    paragraph::{ParagraphCursor, ParagraphCursorError},
-    sentence::{SentenceCursor, SentenceCursorError},
-    span::{Span, SpanData},
-    word::{WordCursor, WordCursorError},
+    block::BlockCursorError, codepoint::CodepointCursorError, graphemes::GraphemeCursorError,
+    line::LineCursorError, paragraph::ParagraphCursorError, sentence::SentenceCursorError,
+    word::WordCursorError,
 };
 
 #[derive(thiserror::Error, Debug)]

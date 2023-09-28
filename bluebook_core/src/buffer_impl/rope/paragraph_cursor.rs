@@ -1,11 +1,6 @@
-use xi_rope::{Cursor, Rope, RopeInfo};
+use xi_rope::{Cursor, RopeInfo};
 
-use crate::{
-    codepoint::CharClassification,
-    mode::Mode,
-    paragraph::ParagraphCursor,
-    word::{WordBoundary, WordCursor},
-};
+use crate::{paragraph::ParagraphCursor, word::WordCursor};
 
 use super::buffer::RopeBuffer;
 

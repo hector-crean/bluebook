@@ -2,13 +2,8 @@ pub mod interval_tree;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, ops::Range};
+use std::ops::Range;
 use string_cache::DefaultAtom;
-
-use fxhash::FxHasher;
-use std::hash::BuildHasherDefault;
-
-use crate::buffer::TextBuffer;
 
 /// The annotated text span.
 

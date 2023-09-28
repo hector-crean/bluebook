@@ -1,5 +1,4 @@
 use crate::mode::CursorMode;
-use serde::{Deserialize, Serialize};
 
 /// We have a concrete cursor struct, which holds information about the current (byte) offset, mode etc.
 /// We have a variety of cursor traits, which are used to find the next cursor offset, given an

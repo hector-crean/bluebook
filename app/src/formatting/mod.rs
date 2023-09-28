@@ -1,7 +1,5 @@
 pub mod citation;
 
-
-
 pub use citation::Citation;
 use egui::{Align, Color32, FontId, Stroke, TextFormat};
 use serde_json::{json, Value};
