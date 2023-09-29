@@ -5,6 +5,7 @@ pub mod grapheme_cursor;
 pub mod line_cursor;
 pub mod paragraph_cursor;
 pub mod search;
+pub mod selection;
 pub mod sentence_cursor;
 pub mod span;
 pub mod word_cursor;

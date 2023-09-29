@@ -1,4 +1,8 @@
 use crate::mode::CursorMode;
+use std::{
+    cmp::{max, min},
+    ops::Add,
+};
 
 /// We have a concrete cursor struct, which holds information about the current (byte) offset, mode etc.
 /// We have a variety of cursor traits, which are used to find the next cursor offset, given an
@@ -47,7 +51,18 @@ pub enum CursorOrientation {
     Backward,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialOrd,
+    Ord,
+)]
 pub struct CursorRange {
     pub anchor: usize,
     pub head: usize,
@@ -174,7 +189,19 @@ impl CursorRange {
     // groupAt
 }
 
-pub struct Cursor {
-    mode: CursorMode,
-    range: CursorRange,
+impl Add for CursorRange {
+    type Output = CursorRange;
+
+    fn add(self, other: CursorRange) -> CursorRange {
+        let is_forward = self.head >= self.anchor;
+        let new_anchor = min(self.anchor, other.anchor);
+        let new_head = max(self.head, other.head);
+        let (anchor, head) = if is_forward {
+            (new_anchor, new_head)
+        } else {
+            (new_head, new_head)
+        };
+
+        CursorRange { anchor, head }
+    }
 }

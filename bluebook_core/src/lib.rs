@@ -20,6 +20,7 @@ pub mod movement;
 pub mod paragraph;
 pub mod position;
 pub mod search;
+pub mod selection;
 pub mod sentence;
 pub mod span;
 pub mod word;
