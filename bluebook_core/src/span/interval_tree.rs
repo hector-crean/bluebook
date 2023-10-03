@@ -40,6 +40,36 @@ pub struct IntervalTree<K, V> {
     data: Vec<Node<K, V>>,
 }
 
+impl<K: Ord + Clone, V> IntervalTree<K, V> {
+    pub fn update_interval(&mut self, point: K, new_end: K) -> Result<(), &'static str> {
+        let mut index = None;
+
+        // Find the node containing the point
+        for (i, node) in self.data.iter().enumerate() {
+            if node.element.range.start <= point && point < node.element.range.end {
+                index = Some(i);
+                break;
+            }
+        }
+
+        let index = match index {
+            Some(i) => i,
+            None => return Err("No interval contains the given point"),
+        };
+
+        // Update the range of the node
+        self.data[index].element.range.end = new_end.clone();
+
+        // Update the max value of the ancestors
+        // TODO: Implement the logic to update the max value of the ancestors
+
+        // Rebalance the tree if needed
+        // TODO: Implement the logic to rebalance the tree if needed
+
+        Ok(())
+    }
+}
+
 impl<K: Ord + Clone, V, I: Into<Element<K, V>>> FromIterator<I> for IntervalTree<K, V> {
     fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
         let mut nodes: Vec<_> = iter

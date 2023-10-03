@@ -3,11 +3,9 @@ use std::cmp::Ordering;
 use std::ops::Range;
 use std::ops::{Deref, DerefMut};
 
-use xi_rope::tree::Node;
-use xi_rope::RopeInfo;
 use xi_rope::{
-    interval::IntervalBounds, rope::ChunkIter, spans::SpansBuilder, DeltaBuilder, Interval,
-    LinesMetric, Rope, RopeDelta,
+    delta::Delta, interval::IntervalBounds, rope::ChunkIter, spans::SpansBuilder, tree::Node,
+    DeltaBuilder, Interval, LinesMetric, Rope, RopeDelta, RopeInfo,
 };
 
 use crate::codepoint::CharIndicesJoin;
@@ -56,30 +54,20 @@ impl RopeBuffer {
         CharIndicesJoin::new(iter)
     }
 
-    fn edit(&mut self, edits: &[(impl AsRef<CursorRange>, &str)]) -> RopeDelta {
+    fn replace_delta(&mut self, iv: Interval, replace_with: &str) -> RopeDelta {
         let mut builder = DeltaBuilder::new(self.len());
-        let mut interval_rope: Vec<(usize, usize, Node<RopeInfo>)> = Vec::new();
 
-        // for (selection, content) in edits {
-        //     let rope = Rope::from(content);
-        //     for region in selection.as_ref().regions() {
-        //         interval_rope.push((region.min(), region.max(), rope.clone()));
-        //     }
-        // }
+        builder.replace(iv, Rope::from(replace_with));
 
-        // interval_rope.sort_by(|a, b| {
-        //     if a.0 == b.0 && a.1 == b.1 {
-        //         Ordering::Equal
-        //     } else if a.1 == b.0 {
-        //         Ordering::Less
-        //     } else {
-        //         a.1.cmp(&b.0)
-        //     }
-        // });
+        let delta = builder.build();
 
-        for (start, end, rope) in interval_rope.into_iter() {
-            builder.replace(start..end, rope);
-        }
+        delta
+    }
+    fn delete_delta(&mut self, iv: Interval) -> RopeDelta {
+        let mut builder = DeltaBuilder::new(self.len());
+
+        builder.delete(iv);
+
         let delta = builder.build();
 
         delta
@@ -219,6 +207,7 @@ impl TextBuffer for RopeBuffer {
         let iv = Interval::new(range.start, range.end);
 
         self.text.edit(iv, replace_with);
+
         Ok(range)
     }
 

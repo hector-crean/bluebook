@@ -1,9 +1,12 @@
+pub mod augmented_avl_tree;
+pub mod interval;
 pub mod interval_tree;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::ops::Range;
 use string_cache::DefaultAtom;
+use xi_rope::{RopeDelta, Transformer};
 
 /// The annotated text span.
 
@@ -33,4 +36,30 @@ pub struct SpanData {
 pub struct Span<T> {
     pub range: Range<usize>,
     pub data: T,
+}
+
+enum InsertDrift {
+    Inside,
+    Outside,
+}
+
+// trait Spannable {
+//     fn apply_span()
+// }
+
+struct NaiveSpans(Vec<Span<SpanData>>);
+
+impl NaiveSpans {
+    pub fn apply_delta(&mut self, delta: &RopeDelta) -> () {
+        let mut transformer = Transformer::new(delta);
+
+        for Span { range, .. } in &mut self.0 {
+            let (new_start, new_end) = (
+                transformer.transform(range.start, false),
+                transformer.transform(range.end, true),
+            );
+            range.start = new_start;
+            range.end = new_end;
+        }
+    }
 }

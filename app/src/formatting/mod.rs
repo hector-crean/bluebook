@@ -34,23 +34,23 @@ pub enum Formatting {
     // Unknown,
 }
 
-impl From<Formatting> for peritext::Style {
-    fn from(value: Formatting) -> Self {
-        match value {
-            Formatting::Bold => peritext::Style::new_bold_like(value.atom(), json!(0)),
-            Formatting::NotBold => peritext::Style::new_erase_bold_like(value.atom()),
-            Formatting::Italic => peritext::Style::new_bold_like(value.atom(), json!(0)),
-            Formatting::NotItalic => peritext::Style::new_erase_bold_like(value.atom()),
-            Formatting::Link { ref url } => {
-                peritext::Style::new_link_like(value.atom(), json!(url))
-            }
-            Formatting::NotLink => peritext::Style::new_erase_link_like(value.atom()),
-            Formatting::Comment(ref comment) => {
-                peritext::Style::new_comment_like(value.atom(), json!(comment))
-            }
-        }
-    }
-}
+// impl From<Formatting> for peritext::Style {
+//     fn from(value: Formatting) -> Self {
+//         match value {
+//             Formatting::Bold => peritext::Style::new_bold_like(value.atom(), json!(0)),
+//             Formatting::NotBold => peritext::Style::new_erase_bold_like(value.atom()),
+//             Formatting::Italic => peritext::Style::new_bold_like(value.atom(), json!(0)),
+//             Formatting::NotItalic => peritext::Style::new_erase_bold_like(value.atom()),
+//             Formatting::Link { ref url } => {
+//                 peritext::Style::new_link_like(value.atom(), json!(url))
+//             }
+//             Formatting::NotLink => peritext::Style::new_erase_link_like(value.atom()),
+//             Formatting::Comment(ref comment) => {
+//                 peritext::Style::new_comment_like(value.atom(), json!(comment))
+//             }
+//         }
+//     }
+// }
 
 #[derive(Clone)]
 pub struct TextFormatBuilder {
