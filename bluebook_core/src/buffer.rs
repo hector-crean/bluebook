@@ -12,29 +12,6 @@ use crate::{
 
 use std::{borrow::Cow, ops::Range};
 
-/**
- *
- * The Drain struct holds a mutable reference to the TextBuffer, ensuring that the text buffer cannot be directly accessed or modified while the Drain instance exists.
-The drain function on TextBuffer returns a Drain instance.
-The lifetime 'a in the Drain struct guarantees that the TextBuffer's data remains valid for the duration of the drain.
-This design effectively locks the TextBuffer during the draining process. Once the Drain iterator is dropped or goes out of scope, the TextBuffer is accessible again. This approach provides safety while allowing for more flexibility in how the drain iterator can be used.
- */
-
-// pub struct Drain<'a, T: TextBuffer + ?Sized> {
-//     pub text_buffer: &'a mut T,
-//     pub range: Range<usize>,
-// }
-
-// impl<'a, T: TextBuffer> Iterator for Drain<'a, T> {
-//     type Item = T::DrainItem;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-
-//         // Logic to drain from text_buffer within the range.
-//         // This would adjust the underlying TextBuffer's data.
-//     }
-// }
-
 #[derive(thiserror::Error, Debug)]
 pub enum ConversionError {
     #[error("Failed to convert text representation")]
@@ -77,6 +54,8 @@ pub trait TextBuffer {
     type SpanIter<'span_iter>: Iterator<Item = Self::SpanIterItem<'span_iter>>
     where
         Self: 'span_iter;
+
+    type Delta;
 
     //Curors take a snapshot of the underlying text buffer, and then navigate around it, holding the state of their
     //offset position internal to them. As soon as the underlying buffer changes, the cursor is invalidated, and we
@@ -129,7 +108,7 @@ pub trait TextBuffer {
     /// Construct an instance of this type from a `&str`.
     fn slice(&self, range: Range<usize>) -> Cow<str>;
 
-    fn write(&mut self, offset: usize, s: &str) -> Result<usize, GraphemeCursorError>;
+    fn write(&mut self, offset: usize, s: &str) -> Result<Self::Delta, GraphemeCursorError>;
 
     fn drain(&mut self, range: Range<usize>) -> std::vec::Drain<&str>;
 
@@ -137,7 +116,7 @@ pub trait TextBuffer {
         &mut self,
         range: Range<usize>,
         replace_with: &str,
-    ) -> Result<Range<usize>, GraphemeCursorError>;
+    ) -> Result<Self::Delta, GraphemeCursorError>;
 
     // fn flush(&mut self) -> Result<(), TextBufferError>;
 

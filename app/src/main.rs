@@ -3,7 +3,12 @@ use bluebook_app::widgets::rich_text_editor::view::{
 };
 
 use bluebook_core::{
-    buffer_impl::rope::buffer::RopeBuffer, ctx::TextEditorContext, cursor::CursorRange,
+    buffer_impl::rope::{
+        buffer::RopeBuffer,
+        span::{Delta, RopeInfo, RopeSpans, Spans},
+    },
+    ctx::TextEditorContext,
+    cursor::CursorRange,
     editor::TextEditor,
 };
 use eframe::{self, egui};
@@ -16,7 +21,7 @@ use tracing_subscriber::prelude::*;
 
 // #[derive(serde::Deserialize, serde::Serialize)]
 struct TextEditApp {
-    editor: EguiTextEditor<RopeBuffer>,
+    editor: EguiTextEditor<RopeBuffer, RopeSpans, Delta<RopeInfo>>,
 }
 
 impl TextEditApp {
@@ -28,17 +33,21 @@ impl TextEditApp {
 
         let buf = RopeBuffer::new("");
         let cursor_range = CursorRange::default();
+        let spans = RopeSpans::new(&buf);
 
         // println!("{:?}, {:?}", &self.cursor_range, &self.buf.take());
-        let edit_ctx = TextEditorContext::new(buf, cursor_range);
+        let edit_ctx = TextEditorContext::new(buf, cursor_range, spans);
         let view_settings =
             ViewSettings::new(Id::new("text_editor"), Vec2::ZERO, Align2::CENTER_CENTER);
 
-        let editor = TextEditor::<RopeBuffer, egui::Event, ViewSettings, ViewCtx>::new(
-            edit_ctx,
-            egui_transact_fn,
-            view_settings,
-        );
+        let editor = TextEditor::<
+            RopeBuffer,
+            RopeSpans,
+            Delta<RopeInfo>,
+            egui::Event,
+            ViewSettings,
+            ViewCtx,
+        >::new(edit_ctx, egui_transact_fn, view_settings);
 
         Self {
             editor: EguiTextEditor(editor),
@@ -48,9 +57,9 @@ impl TextEditApp {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let TextEditApp { editor } = self;
 
-        ScrollArea::vertical()
-            .id_source("source")
-            .show(ui, |ui| ui.add(editor_ui::<RopeBuffer>(editor)));
+        ScrollArea::vertical().id_source("source").show(ui, |ui| {
+            ui.add(editor_ui::<RopeBuffer, RopeSpans, Delta<RopeInfo>>(editor))
+        });
     }
 }
 

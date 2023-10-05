@@ -33,7 +33,9 @@ impl Selection {
         }
     }
 
-    pub fn add_curor_range(cursor_range: CursorRange) -> Selection {}
+    pub fn add_curor_range(&mut self, cursor_range: CursorRange) -> () {
+        self.cursor_ranges.push(cursor_range);
+    }
 
     pub fn contains(&self, offset: usize) -> bool {
         for cursor_range in self.cursor_ranges.iter() {

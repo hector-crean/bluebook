@@ -1,12 +1,18 @@
 pub mod augmented_avl_tree;
 pub mod interval;
-pub mod interval_tree;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::ops::Range;
+use std::ops::{Add, Sub};
+use std::{collections::HashMap, ops::Range};
 use string_cache::DefaultAtom;
 use xi_rope::{RopeDelta, Transformer};
+
+pub trait Spanslike {
+    type Delta;
+    // fn add(&mut self, range: Range<usize>, data: Attributes) -> ();
+    fn update(&mut self, delta: &Self::Delta) -> ();
+}
 
 /// The annotated text span.
 
@@ -43,23 +49,49 @@ enum InsertDrift {
     Outside,
 }
 
-// trait Spannable {
-//     fn apply_span()
-// }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Attributes {
+    pub attributes: HashMap<DefaultAtom, Value>,
+}
 
-struct NaiveSpans(Vec<Span<SpanData>>);
+impl Add for Attributes {
+    type Output = Self;
 
-impl NaiveSpans {
-    pub fn apply_delta(&mut self, delta: &RopeDelta) -> () {
-        let mut transformer = Transformer::new(delta);
-
-        for Span { range, .. } in &mut self.0 {
-            let (new_start, new_end) = (
-                transformer.transform(range.start, false),
-                transformer.transform(range.end, true),
-            );
-            range.start = new_start;
-            range.end = new_end;
+    fn add(self, other: Self) -> Self {
+        let mut result = self.attributes.clone();
+        for (key, value) in other.attributes {
+            // overwriting the value if the key already exists.
+            result.insert(key, value);
         }
+        Attributes { attributes: result }
     }
 }
+
+impl Sub for Attributes {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        let mut result = self.attributes.clone();
+        for key in other.attributes.keys() {
+            result.remove(key);
+        }
+        Attributes { attributes: result }
+    }
+}
+
+// struct NaiveSpans(Vec<Span<SpanData>>);
+
+// impl NaiveSpans {
+//     pub fn apply_delta(&mut self, delta: &RopeDelta) -> () {
+//         let mut transformer = Transformer::new(delta);
+
+//         for Span { range, .. } in &mut self.0 {
+//             let (new_start, new_end) = (
+//                 transformer.transform(range.start, false),
+//                 transformer.transform(range.end, true),
+//             );
+//             range.start = new_start;
+//             range.end = new_end;
+//         }
+//     }
+// }

@@ -11,7 +11,7 @@ use bluebook_core::{
     cursor::CursorRange,
     editor::TextEditor,
     position::Position,
-    span::{Span, SpanData},
+    span::{Span, SpanData, Spanslike},
 };
 use egui::{
     epaint::text::{Row, TextWrapping},
@@ -54,7 +54,9 @@ impl ViewCtx {
     }
 }
 
-pub struct EguiTextEditor<Buf: TextBuffer>(pub TextEditor<Buf, egui::Event, ViewSettings, ViewCtx>);
+pub struct EguiTextEditor<Buf: TextBuffer, Spans: Spanslike<Delta = BufferDelta>, BufferDelta>(
+    pub TextEditor<Buf, Spans, BufferDelta, egui::Event, ViewSettings, ViewCtx>,
+);
 
 // impl<Buf: TextBuffer> Deref for EguiTextEditor<Buf> {
 //     type Target = TextEditor<Buf, egui::Event, ViewSettings, ViewCtx>;
@@ -70,14 +72,19 @@ pub struct EguiTextEditor<Buf: TextBuffer>(pub TextEditor<Buf, egui::Event, View
 //     }
 // }
 
-pub fn editor_ui<'ctx, Buffer: TextBuffer + 'ctx>(
-    text_edtitor: &'ctx mut EguiTextEditor<Buffer>,
+pub fn editor_ui<
+    'ctx,
+    Buffer: TextBuffer<Delta = BufferDelta> + 'ctx,
+    Spans: Spanslike<Delta = BufferDelta>,
+    BufferDelta,
+>(
+    text_edtitor: &'ctx mut EguiTextEditor<Buffer, Spans, BufferDelta>,
 ) -> impl egui::Widget + 'ctx {
     move |ui: &mut egui::Ui| text_edtitor.editor_ui(ui)
 }
 
-pub fn egui_transact_fn<Buf: TextBuffer>(
-    ctx: &TextEditorContext<Buf>,
+pub fn egui_transact_fn<Buf: TextBuffer, Spans: Spanslike<Delta = BufferDelta>, BufferDelta>(
+    ctx: &TextEditorContext<Buf, Spans, BufferDelta>,
     (event, view_ctx): (&Event, &ViewCtx),
 ) -> Option<Transaction> {
     match event {
@@ -134,9 +141,10 @@ pub fn egui_transact_fn<Buf: TextBuffer>(
     }
 }
 
-impl<'ctx, Buffer> EguiTextEditor<Buffer>
+impl<'ctx, Buffer, Spans, BufferDelta> EguiTextEditor<Buffer, Spans, BufferDelta>
 where
-    Buffer: TextBuffer,
+    Buffer: TextBuffer<Delta = BufferDelta>,
+    Spans: Spanslike<Delta = BufferDelta>,
 {
     fn editor_ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         let font_id = FontSelection::default().resolve(ui.style());
@@ -172,7 +180,7 @@ where
 
         let requires_change = events.iter().any(|event| {
             self.0
-                .emit_transcation(event, &view_ctx)
+                .emit_transaction(event, &view_ctx)
                 .map_or(false, |t| {
                     self.0
                         .edit_ctx()
@@ -278,6 +286,7 @@ where
         let TextEditorContext {
             text_buffer,
             cursor_range,
+            spans,
         } = &self.0.edit_ctx;
 
         let Position {
@@ -373,6 +382,8 @@ impl TextEditorState {
     }
 }
 
-impl<'ctx, Buffer: TextBuffer> egui::WidgetWithState for EguiTextEditor<Buffer> {
+impl<'ctx, Buffer: TextBuffer, Spans: Spanslike<Delta = BufferDelta>, BufferDelta>
+    egui::WidgetWithState for EguiTextEditor<Buffer, Spans, BufferDelta>
+{
     type State = TextEditorState;
 }

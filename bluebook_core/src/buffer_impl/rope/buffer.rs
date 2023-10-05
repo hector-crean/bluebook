@@ -30,14 +30,12 @@ pub struct InlayHint {}
 
 pub struct RopeBuffer {
     pub text: Rope,
-    tombstones: Rope,
 }
 
 impl RopeBuffer {
     pub fn new(s: &str) -> Self {
         Self {
             text: Rope::from(s),
-            tombstones: Rope::default(),
         }
     }
 
@@ -52,25 +50,6 @@ impl RopeBuffer {
         let iter: std::iter::Map<ChunkIter<'a>, fn(&str) -> std::str::CharIndices<'_>> =
             iter.map(str::char_indices);
         CharIndicesJoin::new(iter)
-    }
-
-    fn replace_delta(&mut self, iv: Interval, replace_with: &str) -> RopeDelta {
-        let mut builder = DeltaBuilder::new(self.len());
-
-        builder.replace(iv, Rope::from(replace_with));
-
-        let delta = builder.build();
-
-        delta
-    }
-    fn delete_delta(&mut self, iv: Interval) -> RopeDelta {
-        let mut builder = DeltaBuilder::new(self.len());
-
-        builder.delete(iv);
-
-        let delta = builder.build();
-
-        delta
     }
 }
 
@@ -118,10 +97,11 @@ impl TextBuffer for RopeBuffer {
     type SpanIterItem<'span> = (xi_rope::Interval, &'span SpanData);
     type SpanIter<'span> = xi_rope::spans::SpanIter<'span, SpanData>;
 
+    type Delta = Delta<RopeInfo>;
+
     fn from_str(s: &str) -> Self {
         RopeBuffer {
             text: Rope::from(s),
-            tombstones: Rope::default(),
         }
     }
 
@@ -189,10 +169,18 @@ impl TextBuffer for RopeBuffer {
         &mut self,
         offset: usize,
         s: &str,
-    ) -> Result<usize, crate::graphemes::GraphemeCursorError> {
-        self.text.edit(offset..offset, s);
+    ) -> Result<Self::Delta, crate::graphemes::GraphemeCursorError> {
+        let iv = Interval::new(offset, offset);
 
-        Ok(offset + s.len())
+        let mut builder = DeltaBuilder::new(self.len());
+
+        builder.replace(iv, Rope::from(s));
+
+        self.text.edit(iv, s);
+
+        let delta = builder.build();
+
+        Ok(delta)
     }
 
     fn drain(&mut self, _range: std::ops::Range<usize>) -> std::vec::Drain<&str> {
@@ -203,12 +191,18 @@ impl TextBuffer for RopeBuffer {
         &mut self,
         range: Range<usize>,
         replace_with: &str,
-    ) -> Result<Range<usize>, crate::graphemes::GraphemeCursorError> {
+    ) -> Result<Self::Delta, crate::graphemes::GraphemeCursorError> {
         let iv = Interval::new(range.start, range.end);
+
+        let mut builder = DeltaBuilder::new(self.len());
+
+        builder.replace(iv, Rope::from(replace_with));
 
         self.text.edit(iv, replace_with);
 
-        Ok(range)
+        let delta = builder.build();
+
+        Ok(delta)
     }
 
     fn span_iter<'spans, 'buffer: 'spans>(&'buffer self) -> Self::SpanIter<'spans> {

@@ -1,25 +1,28 @@
 use crate::graphemes::GraphemeCursor;
 use crate::{
     buffer::TextBuffer, command::Transaction, cursor::CursorRange, error::BluebookCoreError,
+    span::Spanslike,
 };
-pub struct TextEditorContext<Buffer>
+pub struct TextEditorContext<Buffer, Spans, BufferDelta>
 where
     Buffer: TextBuffer,
+    Spans: Spanslike<Delta = BufferDelta>,
 {
     pub text_buffer: Buffer,
     pub cursor_range: CursorRange,
-    // cursor_mode: CursorMode,
-    // motion_mode: MotionMode,
+    pub spans: Spans,
 }
 
-impl<'ctx, Buffer> TextEditorContext<Buffer>
+impl<'ctx, Buffer, Spans, BufferDelta> TextEditorContext<Buffer, Spans, BufferDelta>
 where
-    Buffer: TextBuffer,
+    Buffer: TextBuffer<Delta = BufferDelta>,
+    Spans: Spanslike<Delta = BufferDelta>,
 {
-    pub fn new(text_buffer: Buffer, cursor_range: CursorRange) -> Self {
+    pub fn new(text_buffer: Buffer, cursor_range: CursorRange, spans: Spans) -> Self {
         Self {
             text_buffer,
             cursor_range,
+            spans,
         }
     }
 
@@ -66,9 +69,10 @@ where
             },
             Transaction::InsertAtCursorHead { value: s } => {
                 let CursorRange { head, .. } = self.cursor_range;
-                let byte_idx = self.text_buffer.write(head, &s)?;
+                let delta = self.text_buffer.write(head, &s)?;
+                self.spans.update(&delta);
 
-                self.cursor_range.set_point(byte_idx);
+                self.cursor_range.set_point(head + s.len());
 
                 tracing::info!("{:?}", self.text_buffer.slice(0..self.text_buffer.len()));
 
@@ -76,9 +80,10 @@ where
             }
             Transaction::Paste { clipboard: s } => {
                 let CursorRange { head, .. } = self.cursor_range;
-                let byte_idx = self.text_buffer.write(head, &s)?;
+                let delta = self.text_buffer.write(head, &s)?;
+                self.spans.update(&delta);
 
-                self.cursor_range.set_point(byte_idx);
+                self.cursor_range.set_point(head + s.len());
 
                 tracing::info!("{:?}", self.text_buffer.slice(0..self.text_buffer.len()));
 
@@ -88,9 +93,10 @@ where
                 let CursorRange { head, .. } = self.cursor_range;
 
                 let newline_char = '\n'.to_string();
-                let byte_idx = self.text_buffer.write(head, &newline_char)?;
+                let delta = self.text_buffer.write(head, &newline_char)?;
+                self.spans.update(&delta);
 
-                self.cursor_range.set_point(byte_idx);
+                self.cursor_range.set_point(head + newline_char.len());
 
                 tracing::info!("{:?}", self.text_buffer.slice(0..self.text_buffer.len()));
 
